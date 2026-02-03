@@ -1,56 +1,91 @@
-# taller-multi-agentic
-Laboratorio práctico para construir una arquitectura multi-agente con Microsoft Fabric, Azure AI Foundry y Copilot Studio, mostrando cómo orquestar datos, razonamiento y acción en una experiencia conversacional unificada.
-
 ## Descripción general
 
-Este workshop práctico está diseñado para guiar a los participantes en la construcción de una arquitectura **multi‑agente** completamente orquestada desde **Copilot Studio**, integrando tres capas clave de la plataforma Microsoft:
+Este workshop práctico guía a los participantes en el diseño e implementación de una arquitectura **multi-agente** usando servicios de Microsoft, aplicada a un escenario de negocio tipo **Contoso Retail**. El foco del ejercicio no es construir un sistema productivo, sino entender cómo **orquestar agentes con responsabilidades claras** para resolver distintos tipos de preguntas de negocio sobre un mismo conjunto de datos.
 
-- **Microsoft Fabric**, como capa de datos y analítica.
+La arquitectura integra tres capas bien definidas:
+
+- **Microsoft Fabric**, como fuente de datos y analítica.
 - **Azure AI Foundry**, como capa de razonamiento y decisión.
 - **Copilot Studio**, como capa de orquestación y experiencia conversacional.
 
-El objetivo principal no es profundizar en la complejidad técnica de cada servicio por separado, sino **entender el patrón arquitectónico**, las responsabilidades de cada agente y cómo se comunican entre sí para resolver problemas reales de negocio de forma trazable, controlada y escalable.
+Copilot Studio actúa como el único punto de entrada y salida para el usuario, coordinando el trabajo de los agentes de datos y de razonamiento para entregar una única respuesta coherente.
 
-Durante el workshop se construirá un único escenario integrado que permite observar dos perspectivas complementarias:
+------
 
-- Una **operativa**, orientada a hechos transaccionales y resolución de casos concretos.
-- Una **analítica**, orientada a tendencias, patrones e insights para la toma de decisiones.
+## Escenario de negocio: Contoso Retail
 
----
+Contoso es una empresa de retail que vende productos a clientes empresariales y finales. Su modelo de datos incluye información de clientes, cuentas, órdenes, líneas de orden, facturas, pagos, productos y categorías.
 
-## Escenario del workshop
+Sobre esta base, el negocio necesita responder dos tipos de preguntas frecuentes:
 
-El escenario se basa en datos de **retail**, incluyendo clientes, órdenes, facturas, pagos, productos y categorías. A partir de esta base de datos común, se habilitan dos tipos de flujos:
+1. **Preguntas operativas**, orientadas a entender qué ocurrió en un caso puntual.
+2. **Preguntas analíticas**, orientadas a entender patrones, tendencias y señales del negocio.
 
-- **Flujo operativo**: permite analizar situaciones transaccionales como estados de facturación, pagos no aplicados o inconsistencias entre órdenes y facturas.
-- **Flujo analítico**: permite analizar el comportamiento del negocio, detectar tendencias, variaciones, concentraciones y señales relevantes para la gestión comercial y financiera.
+El workshop muestra cómo una misma arquitectura puede atender ambos tipos de necesidades sin duplicar sistemas ni lógica.
 
-Ambos flujos comparten la misma arquitectura, pero activan agentes distintos según la intención del usuario.
+------
 
----
+## Flujos de negocio cubiertos
 
-## Arquitectura conceptual
+### Flujo operativo
 
-La arquitectura completa está compuesta por seis agentes distribuidos en tres capas:
+El flujo operativo responde a situaciones concretas como disputas de facturación, pagos aparentemente inconsistentes o facturas vencidas. En este flujo, el objetivo es reconstruir los hechos con precisión, interpretarlos y explicar claramente qué está ocurriendo.
 
-### Microsoft Fabric (capa de datos)
+Ejemplos de preguntas operativas:
 
-- **Aurelio** – Agente de hechos operativos.
-- **Nora** – Agente de analítica y señales.
+- ¿Por qué una factura aparece vencida si el cliente dice haber pagado?
+- ¿Existe un pago registrado que no fue aplicado a una orden?
+- ¿La deuda es legítima o se trata de una inconsistencia operativa?
 
-### Azure AI Foundry (capa de razonamiento)
+### Flujo analítico
 
-- **Bruno** – Agente intérprete para escenarios operativos.
-- **Clara** – Agente planificador para escenarios analíticos.
+El flujo analítico responde a preguntas de carácter estratégico y exploratorio. Aquí el objetivo no es explicar un caso puntual, sino identificar señales relevantes que ayuden a priorizar acciones.
 
-### Copilot Studio (capa de orquestación)
+Ejemplos de preguntas analíticas:
 
-- **Sofía** – Agente conversacional visible para el usuario.
-- **Orion** – Orquestador que controla el flujo entre agentes.
+- ¿Cómo está evolucionando el revenue de un cliente o categoría?
+- ¿Existen cambios en el mix de productos?
+- ¿Se observa un aumento en pagos tardíos o concentración en pocos SKUs?
 
-Copilot Studio es el único punto de entrada y salida. Fabric entrega datos, Foundry razona sobre esos datos y Copilot consolida una única respuesta para el usuario.
+------
 
----
+## Arquitectura y agentes
+
+La arquitectura está compuesta por **seis agentes**, distribuidos en tres capas. Cada agente tiene **una única responsabilidad** y atiende **un solo tipo de escenario** (operativo o analítico).
+
+### Microsoft Fabric – Capa de datos
+
+- **Aurelio (Operational Facts Agent)**
+  Reconstruye hechos transaccionales exactos usando SQL sobre el modelo de datos. Entrega solo datos trazables, sin interpretación.
+- **Nora (Analytics Agent)**
+  Calcula métricas agregadas, tendencias, variaciones y outliers. Entrega señales cuantitativas, sin recomendaciones.
+
+### Azure AI Foundry – Capa de razonamiento
+
+- **Bruno (Interpreter Agent)**
+  Interpreta hechos operativos y los traduce en una explicación de negocio clara y estructurada.
+- **Clara (Planner Agent)**
+  Convierte señales analíticas en prioridades y planes de acción, incluyendo resúmenes ejecutivos.
+
+### Copilot Studio – Capa de orquestación
+
+- **Sofía (UI Agent)**
+  Interactúa con el usuario, recoge intención y presenta la respuesta final.
+- **Orion (Orchestrator)**
+  Decide el flujo de ejecución, invoca a los agentes correctos en el orden adecuado y consolida el resultado.
+
+------
+
+## Objetivo del workshop
+
+Al finalizar el workshop, los participantes comprenderán:
+
+- Cómo separar datos, razonamiento y experiencia de usuario.
+- Cómo diseñar agentes con responsabilidades bien delimitadas.
+- Cómo orquestar flujos operativos y analíticos sobre un mismo dominio de negocio.
+- Cómo usar Copilot Studio como capa central de control en soluciones multi-agente.
+
+Este repositorio sirve como guía práctica y reutilizable para entender y replicar este patrón arquitectónico en escenarios reales.
 
 ## Tabla de contenidos del workshop
 
