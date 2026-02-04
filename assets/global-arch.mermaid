@@ -20,17 +20,23 @@ flowchart LR
     Julie["Julie (Planner)"]
   end
 
+  %% Conexión invisible (Índice 0)
   MF ~~~ AF
-  Charles -- " " --> Bill
+
+  %% Conexiones
+  Charles --> Bill
+  Bill --> Charles
+  Bill --> Ric
   Bill <-->|OP1| Jeffrey
   Bill <-->|OP2| Anders
   Bill <-->|AN1| Amy
   Bill <-->|AN2| Julie
-  Bill -- " " --> Charles
-  Bill --> Ric
 
-  linkStyle 1 stroke:#E02828,stroke-width:3px,color:#E02828
-  linkStyle 2 stroke:#E02828,stroke-width:3px,color:#E02828
-  linkStyle 3 stroke:#2880E0,stroke-width:3px,color:#2880E0
-  linkStyle 4 stroke:#2880E0,stroke-width:3px,color:#2880E0
-  linkStyle 6 stroke:#32CD32,stroke-width:3px,color:#32CD32
+  %% Estilos Verdes: Internos CS (Charles y Ric)
+  linkStyle 1,2,3 stroke:#32CD32,stroke-width:3px,color:#32CD32
+  
+  %% Estilos Rojos: Operativos (Jeffrey y Anders)
+  linkStyle 4,5 stroke:#E02828,stroke-width:3px,color:#E02828
+  
+  %% Estilos Azules: Analíticos (Amy y Julie)
+  linkStyle 6,7 stroke:#2880E0,stroke-width:3px,color:#2880E0
