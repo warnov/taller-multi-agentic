@@ -6,7 +6,8 @@ flowchart LR
 
   subgraph CS["Copilot Studio"]
     Charles["Charles"]
-    Bill["Bill (Orch.)"]
+    Bill((("Bill (Orch)")))
+    Ric{{"Ric (Child)"}}
   end
 
   subgraph MF["Microsoft Fabric"]
@@ -18,16 +19,18 @@ flowchart LR
     Anders["Anders (Interpreter)"]
     Julie["Julie (Planner)"]
   end
+
   MF ~~~ AF
-  Charles L_Charles_Bill_0@--> Bill
-  Bill OP1@<-->|OP1| Jeffrey
-  Bill OP2@<-->|OP2| Anders
-  Bill AN1@<-->|AN1| Amy
-  Bill AN2@<-->|AN2| Julie
-  Bill L_Bill_Charles_0@--> Charles
-  L_Charles_Bill_0@{ curve: natural }
-  L_Bill_Charles_0@{ curve: natural }
-  linkStyle 2 stroke:#E02828,stroke-width:3px,color:#E02828     %% OP1 - red
-  linkStyle 3 stroke:#E02828,stroke-width:3px,color:#E02828     %% OP2 - red
-  linkStyle 4 stroke:#2880E0,stroke-width:3px,color:#2880E0     %% AN1 - blue
-  linkStyle 5 stroke:#2880E0,stroke-width:3px,color:#2880E0  
+  Charles -- " " --> Bill
+  Bill <-->|OP1| Jeffrey
+  Bill <-->|OP2| Anders
+  Bill <-->|AN1| Amy
+  Bill <-->|AN2| Julie
+  Bill -- " " --> Charles
+  Bill --> Ric
+
+  linkStyle 1 stroke:#E02828,stroke-width:3px,color:#E02828
+  linkStyle 2 stroke:#E02828,stroke-width:3px,color:#E02828
+  linkStyle 3 stroke:#2880E0,stroke-width:3px,color:#2880E0
+  linkStyle 4 stroke:#2880E0,stroke-width:3px,color:#2880E0
+  linkStyle 6 stroke:#32CD32,stroke-width:3px,color:#32CD32
