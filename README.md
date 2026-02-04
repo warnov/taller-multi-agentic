@@ -60,7 +60,8 @@ flowchart LR
 
   subgraph CS["Copilot Studio"]
     Charles["Charles"]
-    Bill["Bill (Orch.)"]
+    Bill((("Bill (Orch)")))
+    Ric{{"Ric (Child)"}}
   end
 
   subgraph MF["Microsoft Fabric"]
@@ -72,19 +73,27 @@ flowchart LR
     Anders["Anders (Interpreter)"]
     Julie["Julie (Planner)"]
   end
+
+  %% Conexión invisible (Índice 0)
   MF ~~~ AF
-  Charles L_Charles_Bill_0@--> Bill
-  Bill OP1@<-->|OP1| Jeffrey
-  Bill OP2@<-->|OP2| Anders
-  Bill AN1@<-->|AN1| Amy
-  Bill AN2@<-->|AN2| Julie
-  Bill L_Bill_Charles_0@--> Charles
-  L_Charles_Bill_0@{ curve: natural }
-  L_Bill_Charles_0@{ curve: natural }
-  linkStyle 2 stroke:#E02828,stroke-width:3px,color:#E02828     %% OP1 - red
-  linkStyle 3 stroke:#E02828,stroke-width:3px,color:#E02828     %% OP2 - red
-  linkStyle 4 stroke:#2880E0,stroke-width:3px,color:#2880E0     %% AN1 - blue
-  linkStyle 5 stroke:#2880E0,stroke-width:3px,color:#2880E0  
+
+  %% Conexiones
+  Charles --> Bill
+  Bill --> Charles
+  Bill --> Ric
+  Bill <-->|OP1| Jeffrey
+  Bill <-->|OP2| Anders
+  Bill <-->|AN1| Amy
+  Bill <-->|AN2| Julie
+
+  %% Estilos Verdes: Internos CS (Charles y Ric)
+  linkStyle 1,2,3 stroke:#32CD32,stroke-width:3px,color:#32CD32
+  
+  %% Estilos Rojos: Operativos (Jeffrey y Anders)
+  linkStyle 4,5 stroke:#E02828,stroke-width:3px,color:#E02828
+  
+  %% Estilos Azules: Analíticos (Amy y Julie)
+  linkStyle 6,7 stroke:#2880E0,stroke-width:3px,color:#2880E0
 ```
 
 La arquitectura está compuesta por **seis agentes**, distribuidos en tres capas. Cada agente tiene **una única responsabilidad** y atiende **un solo tipo de escenario** (operativo o analítico).
