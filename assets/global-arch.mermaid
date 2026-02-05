@@ -11,7 +11,7 @@ flowchart LR
   end
 
   subgraph MF["Microsoft Fabric"]
-    Jeffrey["Jeffrey (Op. Facts)"]
+    Mark["Mark (Op. Facts)"]
     Amy["Amy (Analytics)"]
   end
 
@@ -27,7 +27,7 @@ flowchart LR
   Charles --> Bill
   Bill --> Charles
   Bill --> Ric
-  Bill <-->|OP1| Jeffrey
+  Bill <-->|OP1| Mark
   Bill <-->|OP2| Anders
   Bill <-->|AN1| Amy
   Bill <-->|AN2| Julie
@@ -35,7 +35,7 @@ flowchart LR
   %% Estilos Verdes: Internos CS (Charles y Ric)
   linkStyle 1,2,3 stroke:#32CD32,stroke-width:3px,color:#32CD32
   
-  %% Estilos Rojos: Operativos (Jeffrey y Anders)
+  %% Estilos Rojos: Operativos (Mark y Anders)
   linkStyle 4,5 stroke:#E02828,stroke-width:3px,color:#E02828
   
   %% Estilos Azules: Analíticos (Amy y Julie)
