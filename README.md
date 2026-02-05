@@ -96,28 +96,30 @@ flowchart LR
   linkStyle 6,7 stroke:#2880E0,stroke-width:3px,color:#2880E0
 ```
 
-La arquitectura está compuesta por **seis agentes**, distribuidos en tres capas. Cada agente tiene **una única responsabilidad** y atiende **un solo tipo de escenario** (operativo o analítico).
+La arquitectura está compuesta por **siete agentes**, distribuidos en tres capas. Cada agente tiene **una única responsabilidad** y atiende **un solo tipo de escenario** (operativo o analítico).
 
 ### Microsoft Fabric – Capa de datos
 
-- **Aurelio (Operational Facts Agent)**
+- **Mark (Operational Facts Agent)**
   Reconstruye hechos transaccionales exactos usando SQL sobre el modelo de datos. Entrega solo datos trazables, sin interpretación.
-- **Nora (Analytics Agent)**
+- **Amy (Analytics Agent)**
   Calcula métricas agregadas, tendencias, variaciones y outliers. Entrega señales cuantitativas, sin recomendaciones.
 
 ### Azure AI Foundry – Capa de razonamiento
 
-- **Bruno (Interpreter Agent)**
+- **Anders (Interpreter Agent)**
   Interpreta hechos operativos y los traduce en una explicación de negocio clara y estructurada.
-- **Clara (Planner Agent)**
+- **Julie (Planner Agent)**
   Convierte señales analíticas en prioridades y planes de acción, incluyendo resúmenes ejecutivos.
 
 ### Copilot Studio – Capa de orquestación
 
-- **Sofía (UI Agent)**
+- **Charles (UI Agent)**
   Interactúa con el usuario, recoge intención y presenta la respuesta final.
-- **Orion (Orchestrator)**
+- **Bill (Orchestrator)**
   Decide el flujo de ejecución, invoca a los agentes correctos en el orden adecuado y consolida el resultado.
+- **Ric (Child Agent)**
+  Agente hijo que extiende las capacidades de orquestación del sistema.
 
 ------
 
@@ -139,18 +141,19 @@ El workshop está dividido en laboratorios independientes pero conectados, organ
 ### 1. Laboratorios de Microsoft Fabric
 
 - [Lab 1 – Preparación de datos y modelo de retail](./labs/fabric/lab01-data-setup.md)
-- [Lab 2 – Agente Aurelio: hechos operativos](./labs/fabric/lab02-aurelio-facts-agent.md)
-- [Lab 3 – Agente Nora: analítica y señales](./labs/fabric/lab03-nora-analytics-agent.md)
+- [Lab 2 – Agente Mark: hechos operativos](./labs/fabric/lab02-mark-facts-agent.md)
+- [Lab 3 – Agente Amy: analítica y señales](./labs/fabric/lab03-amy-analytics-agent.md)
 
 ### 2. Laboratorios de Azure AI Foundry
 
-- [Lab 4 – Agente Bruno: interpretación operativa](./labs/foundry/lab04-bruno-interpreter-agent.md)
-- [Lab 5 – Agente Clara: planificación analítica](./labs/foundry/lab05-clara-planner-agent.md)
+- [Lab 4 – Agente Anders: interpretación operativa](./labs/foundry/lab04-anders-interpreter-agent.md)
+- [Lab 5 – Agente Julie: planificación analítica](./labs/foundry/lab05-julie-planner-agent.md)
 
 ### 3. Laboratorios de Copilot Studio
 
-- [Lab 6 – Agente Sofía: experiencia conversacional](./labs/copilot/lab06-sofia-copilot-agent.md)
-- [Lab 7 – Orquestador Orion: control del flujo multi‑agente](./labs/copilot/lab07-orion-orchestrator.md)
+- [Lab 6 – Agente Charles: experiencia conversacional](./labs/copilot/lab06-charles-copilot-agent.md)
+- [Lab 7 – Agente Ric: agente hijo](./labs/copilot/lab07-ric-child-agent.md)
+- [Lab 8 – Orquestador Bill: control del flujo multi‑agente](./labs/copilot/lab08-bill-orchestrator.md)
 
 ---
 
