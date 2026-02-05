@@ -55,45 +55,40 @@ Ejemplos de preguntas analíticas:
 ---
 config:
   look: neo
+  theme: neo-dark
 ---
 flowchart LR
-
-  subgraph CS["Copilot Studio"]
-    Charles["Charles"]
-    Bill((("Bill (Orch)")))
-    Ric{{"Ric (Child)"}}
+ subgraph CS["Copilot Studio"]
+        Charles["Charles"]
+        Bill((("Bill (Orch)")))
+        Ric{{"Ric (Child)"}}
   end
-
-  subgraph MF["Microsoft Fabric"]
-    Mark["Mark (Op. Facts)"]
-    Amy["Amy (Analytics)"]
+ subgraph MF["Microsoft Fabric"]
+        Jeffrey["Mark (Op. Facts)"]
+        Amy["Amy (Analytics)"]
   end
-
-  subgraph AF["Azure AI Foundry"]
-    Anders["Anders (Interpreter)"]
-    Julie["Julie (Planner)"]
+ subgraph AF["Azure AI Foundry"]
+        Anders["Anders (Interpreter)"]
+        Julie["Julie (Planner)"]
   end
+    MF ~~~ AF
+    Charles L_Charles_Bill_0@--> Bill
+    Bill L_Bill_Charles_0@--> Charles & Ric
+    Bill <-- OP1 --> Jeffrey
+    Bill <-- OP2 --> Anders
+    Bill <-- AN1 --> Amy
+    Bill <-- AN2 --> Julie
 
-  %% Conexión invisible (Índice 0)
-  MF ~~~ AF
+    linkStyle 1 stroke:#32CD32,stroke-width:3px,color:#32CD32,fill:none
+    linkStyle 2 stroke:#32CD32,stroke-width:3px,color:#32CD32,fill:none
+    linkStyle 3 stroke:#32CD32,stroke-width:3px,color:#32CD32,fill:none
+    linkStyle 4 stroke:#E02828,stroke-width:3px,color:#E02828,fill:none
+    linkStyle 5 stroke:#E02828,stroke-width:3px,color:#E02828,fill:none
+    linkStyle 6 stroke:#2880E0,stroke-width:3px,color:#2880E0,fill:none
+    linkStyle 7 stroke:#2880E0,stroke-width:3px,color:#2880E0,fill:none
 
-  %% Conexiones
-  Charles --> Bill
-  Bill --> Charles
-  Bill --> Ric
-  Bill <-->|OP1| Mark
-  Bill <-->|OP2| Anders
-  Bill <-->|AN1| Amy
-  Bill <-->|AN2| Julie
-
-  %% Estilos Verdes: Internos CS (Charles y Ric)
-  linkStyle 1,2,3 stroke:#32CD32,stroke-width:3px,color:#32CD32
-  
-  %% Estilos Rojos: Operativos (Mark y Anders)
-  linkStyle 4,5 stroke:#E02828,stroke-width:3px,color:#E02828
-  
-  %% Estilos Azules: Analíticos (Amy y Julie)
-  linkStyle 6,7 stroke:#2880E0,stroke-width:3px,color:#2880E0
+    L_Charles_Bill_0@{ curve: natural } 
+    L_Bill_Charles_0@{ curve: natural }
 ```
 
 La arquitectura está compuesta por **siete agentes**, distribuidos en tres capas. Cada agente tiene **una única responsabilidad** y atiende **un solo tipo de escenario** (operativo o analítico).
