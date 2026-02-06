@@ -100,6 +100,15 @@ La arquitectura está compuesta por **siete agentes**, distribuidos en tres capa
 - **Amy (Analytics Agent)**
   Calcula métricas agregadas, tendencias, variaciones y outliers. Entrega señales cuantitativas, sin recomendaciones.
 
+#### Documentación de la base de datos
+
+Para comprender mejor el modelo de datos sobre el cual operan los agentes de Fabric, se ha agregado documentación detallada de la base de datos de Contoso Retail. Esta documentación incluye:
+
+- **Diagrama ER (Entidad-Relación)** que muestra las relaciones entre las tablas principales
+- **Esquemas de tablas** con todos los campos y tipos de datos
+
+Puedes consultar la documentación completa aquí: [Database Documentation](./assets/database.md)
+
 ### Azure AI Foundry – Capa de razonamiento
 
 - **Anders (Interpreter Agent)**
