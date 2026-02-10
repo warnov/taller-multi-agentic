@@ -1,6 +1,11 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using Azure.Identity;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
+using Azure.Storage.Blobs.Specialized;
+using Azure.Storage.Sas;
 using Contoso.Retail.Functions.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -168,12 +173,48 @@ public class FxContosoRetail
             "<strong id=\"report-grand-total\"></strong>",
             $"<strong id=\"report-grand-total\">{FormatCurrency(grandTotal)}</strong>");
 
-        return new ContentResult
+        // --- Subir HTML como blob al container "reports" ---
+        string storageAccountName = _configuration["StorageAccountName"]
+            ?? throw new InvalidOperationException("StorageAccountName no está configurada.");
+
+        string timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
+        string blobName = $"report-{timestamp}.htm";
+
+        var blobServiceUri = new Uri($"https://{storageAccountName}.blob.core.windows.net");
+        var credential = new DefaultAzureCredential();
+        var blobServiceClient = new BlobServiceClient(blobServiceUri, credential);
+        var containerClient = blobServiceClient.GetBlobContainerClient("reports");
+        var blobClient = containerClient.GetBlobClient(blobName);
+
+        var htmlBytes = Encoding.UTF8.GetBytes(html);
+        using var stream = new MemoryStream(htmlBytes);
+        await blobClient.UploadAsync(stream, new BlobHttpHeaders
         {
-            Content = html,
-            ContentType = "text/html; charset=utf-8",
-            StatusCode = 200
+            ContentType = "text/html; charset=utf-8"
+        });
+
+        _logger.LogInformation("Reporte subido como blob: {BlobName}", blobName);
+
+        // --- Generar SAS de solo lectura con duración de 1 hora (User Delegation) ---
+        var userDelegationKey = await blobServiceClient.GetUserDelegationKeyAsync(
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow.AddHours(1));
+
+        var sasBuilder = new BlobSasBuilder
+        {
+            BlobContainerName = "reports",
+            BlobName = blobName,
+            Resource = "b",
+            ExpiresOn = DateTimeOffset.UtcNow.AddHours(1)
         };
+        sasBuilder.SetPermissions(BlobSasPermissions.Read);
+
+        var blobUriBuilder = new BlobUriBuilder(blobClient.Uri)
+        {
+            Sas = sasBuilder.ToSasQueryParameters(userDelegationKey, storageAccountName)
+        };
+
+        return new OkObjectResult(new { reportUrl = blobUriBuilder.ToUri().ToString() });
     }
 
     /// <summary>

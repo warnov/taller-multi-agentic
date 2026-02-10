@@ -1,5 +1,5 @@
 # ============================================================================
-# Contoso Retail - Script de Despliegue
+# Contoso Retail - Script de Despliegue (Consumption Y1 / Windows)
 # Taller Multi-Agéntico
 # ============================================================================
 # Uso:
@@ -23,6 +23,7 @@ $ErrorActionPreference = "Stop"
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host " Taller Multi-Agéntico - Despliegue" -ForegroundColor Cyan
+Write-Host " Plan: Consumption (Y1 / Windows)" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  Tenant:         $TenantName" -ForegroundColor Yellow
@@ -31,7 +32,7 @@ Write-Host "  Resource Group: $ResourceGroupName" -ForegroundColor Yellow
 Write-Host ""
 
 # --- 1. Verificar Azure CLI ---
-Write-Host "[1/4] Verificando Azure CLI..." -ForegroundColor Green
+Write-Host "[1/5] Verificando Azure CLI..." -ForegroundColor Green
 try {
     $azVersion = az version --output json | ConvertFrom-Json
     Write-Host "  Azure CLI v$($azVersion.'azure-cli') detectado." -ForegroundColor Gray
@@ -41,7 +42,7 @@ try {
 }
 
 # --- 2. Verificar sesión activa ---
-Write-Host "[2/4] Verificando sesión de Azure..." -ForegroundColor Green
+Write-Host "[2/5] Verificando sesión de Azure..." -ForegroundColor Green
 $account = az account show --output json 2>$null | ConvertFrom-Json
 if (-not $account) {
     Write-Host "  No hay sesión activa. Iniciando login..." -ForegroundColor Yellow
@@ -51,7 +52,7 @@ if (-not $account) {
 Write-Host "  Suscripción: $($account.name) ($($account.id))" -ForegroundColor Gray
 
 # --- 3. Crear Resource Group ---
-Write-Host "[3/4] Creando Resource Group '$ResourceGroupName'..." -ForegroundColor Green
+Write-Host "[3/5] Creando Resource Group '$ResourceGroupName'..." -ForegroundColor Green
 az group create --name $ResourceGroupName --location $Location --output none
 Write-Host "  Resource Group listo." -ForegroundColor Gray
 
@@ -78,7 +79,7 @@ Remove-Item $suffixTempFile -Force -ErrorAction SilentlyContinue
 Write-Host "  Sufijo:         $suffixResult" -ForegroundColor Yellow
 
 # --- 4. Desplegar Bicep ---
-Write-Host "[4/4] Desplegando infraestructura..." -ForegroundColor Green
+Write-Host "[4/5] Desplegando infraestructura..." -ForegroundColor Green
 Write-Host "" -ForegroundColor Gray
 Write-Host "  Esto puede tomar ~5 minutos." -ForegroundColor Yellow
 Write-Host ""
@@ -93,7 +94,29 @@ az deployment group create `
     --parameters tenantName=$TenantName location=$Location `
     --name $deploymentName `
     --no-wait `
-    --output none 2>&1 | Out-Null
+    --output none
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "No se pudo iniciar el despliegue. Verifica que no haya recursos soft-deleted (az cognitiveservices account list-deleted)."
+    exit 1
+}
+
+# Esperar a que el deployment aparezca en ARM (~5 segundos)
+$retries = 0
+do {
+    Start-Sleep -Seconds 3
+    $retries++
+    $depState = az deployment group show `
+        --resource-group $ResourceGroupName `
+        --name $deploymentName `
+        --query 'properties.provisioningState' `
+        --output tsv 2>$null
+} while (-not $depState -and $retries -lt 10)
+
+if (-not $depState) {
+    Write-Error "El deployment '$deploymentName' no se registró en Azure. Verifica errores de validación."
+    exit 1
+}
 
 # Seguimiento recurso a recurso
 $completedOps = @{}
@@ -167,18 +190,70 @@ $result = az deployment group show `
     --name $deploymentName `
     --output json | ConvertFrom-Json
 
-# --- Mostrar resultados ---
 $outputs = $result.properties.outputs
+$functionAppName = $outputs.functionAppName.value
+
+# --- 5. Publicar código de la Function App ---
+Write-Host "[5/5] Publicando código de FxContosoRetail..." -ForegroundColor Green
+$projectDir = Join-Path $scriptDir ".." ".." "code" "api" "FxContosoRetail"
+$publishDir = Join-Path $projectDir "bin" "publish"
+
+Write-Host "  Compilando proyecto..." -ForegroundColor Gray
+dotnet publish $projectDir --configuration Release --output $publishDir 2>&1 | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Error al compilar el proyecto. Verifica el código."
+    exit 1
+}
+
+# Crear zip para deployment
+$zipPath = Join-Path $env:TEMP "fxcontosoretail-publish.zip"
+if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+Compress-Archive -Path "$publishDir\*" -DestinationPath $zipPath -Force
+
+Write-Host "  Desplegando a $functionAppName..." -ForegroundColor Gray
+az functionapp deployment source config-zip `
+    --resource-group $ResourceGroupName `
+    --name $functionAppName `
+    --src $zipPath `
+    --output none 2>&1 | Out-Null
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Error al publicar el código. Revisa los errores anteriores."
+    exit 1
+}
+
+# Limpiar archivos temporales
+Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
+Remove-Item $publishDir -Recurse -Force -ErrorAction SilentlyContinue
+
+Write-Host "  ✅ Código publicado exitosamente." -ForegroundColor Green
+
+# --- Resumen final ---
+$functionAppUrl = $outputs.functionAppUrl.value
+
+# Obtener la host key (estable, no cambia con deployments)
+$funcKey = az functionapp keys list `
+    --resource-group $ResourceGroupName `
+    --name $functionAppName `
+    --query 'functionKeys.default' `
+    --output tsv 2>$null
+
+if ($funcKey) {
+    $apiUrl = "$functionAppUrl/api/OrdersReporter?code=$funcKey"
+} else {
+    $apiUrl = "$functionAppUrl/api/OrdersReporter?code=[FUNC_KEY]"
+}
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Green
-Write-Host " ¡Despliegue exitoso!" -ForegroundColor Green
+Write-Host " ¡Despliegue completo!" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "  Sufijo único:        $($outputs.suffix.value)" -ForegroundColor White
 Write-Host "  Storage Account:     $($outputs.storageAccountName.value)" -ForegroundColor White
-Write-Host "  Function App:        $($outputs.functionAppName.value)" -ForegroundColor White
-Write-Host "  Function App URL:    $($outputs.functionAppUrl.value)" -ForegroundColor White
+Write-Host "  Function App:        $functionAppName" -ForegroundColor White
+Write-Host "  Function App URL:    $functionAppUrl" -ForegroundColor White
+Write-Host "  API OrdersReporter:  $apiUrl" -ForegroundColor White
 Write-Host "  AI Foundry:          $($outputs.aiFoundryName.value)" -ForegroundColor White
 Write-Host "  AI Foundry Endpoint: $($outputs.aiFoundryEndpoint.value)" -ForegroundColor White
 Write-Host "  AI Project:          $($outputs.aiProjectName.value)" -ForegroundColor White

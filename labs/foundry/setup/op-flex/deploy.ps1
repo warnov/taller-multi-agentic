@@ -1,0 +1,260 @@
+# ============================================================================
+# Contoso Retail - Script de Despliegue (Flex Consumption FC1 / Linux)
+# Taller Multi-Agéntico
+# ============================================================================
+# Uso:
+#   .\deploy.ps1 -TenantName "mi-tenant-temporal"
+#   .\deploy.ps1 -TenantName "mi-tenant-temporal" -Location "eastus"
+# ============================================================================
+
+param(
+    [Parameter(Mandatory = $true, HelpMessage = "Nombre del tenant temporal asignado al attendee.")]
+    [string]$TenantName,
+
+    [Parameter(Mandatory = $false, HelpMessage = "Región de Azure (default: eastus).")]
+    [string]$Location = "eastus",
+
+    [Parameter(Mandatory = $false, HelpMessage = "Nombre del Resource Group (default: rg-contoso-retail).")]
+    [string]$ResourceGroupName = "rg-contoso-retail"
+)
+
+$ErrorActionPreference = "Stop"
+
+Write-Host ""
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host " Taller Multi-Agéntico - Despliegue" -ForegroundColor Cyan
+Write-Host " Plan: Flex Consumption (FC1 / Linux)" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "  Tenant:         $TenantName" -ForegroundColor Yellow
+Write-Host "  Location:       $Location" -ForegroundColor Yellow
+Write-Host "  Resource Group: $ResourceGroupName" -ForegroundColor Yellow
+Write-Host ""
+
+# --- 1. Verificar Azure CLI ---
+Write-Host "[1/5] Verificando Azure CLI..." -ForegroundColor Green
+try {
+    $azVersion = az version --output json | ConvertFrom-Json
+    Write-Host "  Azure CLI v$($azVersion.'azure-cli') detectado." -ForegroundColor Gray
+} catch {
+    Write-Error "Azure CLI no está instalado. Instálalo desde https://aka.ms/installazurecli"
+    exit 1
+}
+
+# --- 2. Verificar sesión activa ---
+Write-Host "[2/5] Verificando sesión de Azure..." -ForegroundColor Green
+$account = az account show --output json 2>$null | ConvertFrom-Json
+if (-not $account) {
+    Write-Host "  No hay sesión activa. Iniciando login..." -ForegroundColor Yellow
+    az login
+    $account = az account show --output json | ConvertFrom-Json
+}
+Write-Host "  Suscripción: $($account.name) ($($account.id))" -ForegroundColor Gray
+
+# --- 3. Crear Resource Group ---
+Write-Host "[3/5] Creando Resource Group '$ResourceGroupName'..." -ForegroundColor Green
+az group create --name $ResourceGroupName --location $Location --output none
+Write-Host "  Resource Group listo." -ForegroundColor Gray
+
+# Calcular y mostrar el sufijo antes de desplegar
+$suffixTemplate = @'
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": { "t": { "type": "string" } },
+  "resources": [],
+  "outputs": { "s": { "type": "string", "value": "[substring(uniqueString(parameters('t')),0,5)]" } }
+}
+'@
+$suffixTempFile = Join-Path $env:TEMP "suffix-calc.json"
+$suffixTemplate | Out-File -FilePath $suffixTempFile -Encoding utf8 -Force
+$suffixResult = az deployment group create `
+    --resource-group $ResourceGroupName `
+    --template-file $suffixTempFile `
+    --parameters t=$TenantName `
+    --name "suffix-calc" `
+    --query 'properties.outputs.s.value' `
+    --output tsv 2>$null
+Remove-Item $suffixTempFile -Force -ErrorAction SilentlyContinue
+Write-Host "  Sufijo:         $suffixResult" -ForegroundColor Yellow
+
+# --- 4. Desplegar Bicep ---
+Write-Host "[4/5] Desplegando infraestructura..." -ForegroundColor Green
+Write-Host "" -ForegroundColor Gray
+Write-Host "  Esto puede tomar ~5 minutos." -ForegroundColor Yellow
+Write-Host ""
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$templateFile = Join-Path $scriptDir "main.bicep"
+$deploymentName = "main"
+
+# Lanzar despliegue en background (--no-wait)
+az deployment group create `
+    --resource-group $ResourceGroupName `
+    --template-file $templateFile `
+    --parameters tenantName=$TenantName location=$Location `
+    --name $deploymentName `
+    --no-wait `
+    --output none
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "No se pudo iniciar el despliegue. Verifica que no haya recursos soft-deleted (az cognitiveservices account list-deleted)."
+    exit 1
+}
+
+# Esperar a que el deployment aparezca en ARM (~5 segundos)
+$retries = 0
+do {
+    Start-Sleep -Seconds 3
+    $retries++
+    $depState = az deployment group show `
+        --resource-group $ResourceGroupName `
+        --name $deploymentName `
+        --query 'properties.provisioningState' `
+        --output tsv 2>$null
+} while (-not $depState -and $retries -lt 10)
+
+if (-not $depState) {
+    Write-Error "El deployment '$deploymentName' no se registró en Azure. Verifica errores de validación."
+    exit 1
+}
+
+# Seguimiento recurso a recurso
+$completedOps = @{}
+$spinChars = @('|', '/', '-', '\\')
+$spinIdx = 0
+$deployFailed = $false
+
+while ($true) {
+    Start-Sleep -Seconds 3
+
+    # Obtener operaciones del deployment
+    $opsJson = az deployment operation group list `
+        --resource-group $ResourceGroupName `
+        --name $deploymentName `
+        --output json 2>$null
+
+    if (-not $opsJson) { continue }
+    $ops = $opsJson | ConvertFrom-Json
+
+    foreach ($op in $ops) {
+        $resType = $op.properties.targetResource.resourceType
+        $resName = $op.properties.targetResource.resourceName
+        $status  = $op.properties.provisioningState
+
+        if (-not $resType -or -not $resName) { continue }
+
+        $key = "$resType/$resName"
+
+        # Mostrar solo transiciones nuevas
+        $prevStatus = $completedOps[$key]
+        if ($prevStatus -ne $status) {
+            $completedOps[$key] = $status
+            $shortType = $resType -replace '^Microsoft\.', '' -replace '/providers/.*', ''
+            switch ($status) {
+                'Running'   { Write-Host "  ⏳ $shortType/$resName ..." -ForegroundColor Gray }
+                'Succeeded' { Write-Host "  ✅ $shortType/$resName" -ForegroundColor Green }
+                'Failed'    { Write-Host "  ❌ $shortType/$resName" -ForegroundColor Red; $deployFailed = $true }
+            }
+        }
+    }
+
+    # Verificar si el deployment terminó
+    $depJson = az deployment group show `
+        --resource-group $ResourceGroupName `
+        --name $deploymentName `
+        --query 'properties.provisioningState' `
+        --output tsv 2>$null
+
+    if ($depJson -eq 'Succeeded' -or $depJson -eq 'Failed' -or $depJson -eq 'Canceled') {
+        break
+    }
+
+    $spinIdx = ($spinIdx + 1) % $spinChars.Count
+}
+
+if ($depJson -ne 'Succeeded') {
+    Write-Host ""
+    # Mostrar error detallado
+    az deployment group show `
+        --resource-group $ResourceGroupName `
+        --name $deploymentName `
+        --query 'properties.error' `
+        --output json
+    Write-Error "El despliegue falló. Revisa los errores anteriores."
+    exit 1
+}
+
+# Obtener outputs del deployment exitoso
+$result = az deployment group show `
+    --resource-group $ResourceGroupName `
+    --name $deploymentName `
+    --output json | ConvertFrom-Json
+
+$outputs = $result.properties.outputs
+$functionAppName = $outputs.functionAppName.value
+
+# --- 5. Publicar código de la Function App ---
+Write-Host "[5/5] Publicando código de FxContosoRetail..." -ForegroundColor Green
+$projectDir = Join-Path $scriptDir ".." ".." "code" "api" "FxContosoRetail"
+$publishDir = Join-Path $projectDir "bin" "publish"
+
+Write-Host "  Compilando proyecto..." -ForegroundColor Gray
+dotnet publish $projectDir --configuration Release --output $publishDir 2>&1 | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Error al compilar el proyecto. Verifica el código."
+    exit 1
+}
+
+# Crear zip para deployment
+$zipPath = Join-Path $env:TEMP "fxcontosoretail-publish.zip"
+if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+Compress-Archive -Path "$publishDir\*" -DestinationPath $zipPath -Force
+
+Write-Host "  Desplegando a $functionAppName..." -ForegroundColor Gray
+az functionapp deployment source config-zip `
+    --resource-group $ResourceGroupName `
+    --name $functionAppName `
+    --src $zipPath `
+    --output none 2>&1 | Out-Null
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Error al publicar el código. Revisa los errores anteriores."
+    exit 1
+}
+
+# Limpiar archivos temporales
+Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
+Remove-Item $publishDir -Recurse -Force -ErrorAction SilentlyContinue
+
+Write-Host "  ✅ Código publicado exitosamente." -ForegroundColor Green
+
+# --- Resumen final ---
+$functionAppUrl = $outputs.functionAppUrl.value
+
+# Obtener la host key (estable, no cambia con deployments)
+$funcKey = az functionapp keys list `
+    --resource-group $ResourceGroupName `
+    --name $functionAppName `
+    --query 'functionKeys.default' `
+    --output tsv 2>$null
+
+if ($funcKey) {
+    $apiUrl = "$functionAppUrl/api/OrdersReporter?code=$funcKey"
+} else {
+    $apiUrl = "$functionAppUrl/api/OrdersReporter?code=[FUNC_KEY]"
+}
+
+Write-Host ""
+Write-Host "========================================" -ForegroundColor Green
+Write-Host " ¡Despliegue completo!" -ForegroundColor Green
+Write-Host "========================================" -ForegroundColor Green
+Write-Host ""
+Write-Host "  Sufijo único:        $($outputs.suffix.value)" -ForegroundColor White
+Write-Host "  Storage Account:     $($outputs.storageAccountName.value)" -ForegroundColor White
+Write-Host "  Function App:        $functionAppName" -ForegroundColor White
+Write-Host "  Function App URL:    $functionAppUrl" -ForegroundColor White
+Write-Host "  API OrdersReporter:  $apiUrl" -ForegroundColor White
+Write-Host "  AI Foundry:          $($outputs.aiFoundryName.value)" -ForegroundColor White
+Write-Host "  AI Foundry Endpoint: $($outputs.aiFoundryEndpoint.value)" -ForegroundColor White
+Write-Host "  AI Project:          $($outputs.aiProjectName.value)" -ForegroundColor White
+Write-Host ""

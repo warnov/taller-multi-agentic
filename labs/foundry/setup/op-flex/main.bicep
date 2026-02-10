@@ -1,9 +1,15 @@
 // ============================================================================
-// Contoso Retail - Infraestructura Azure
+// Contoso Retail - Infraestructura Azure (Flex Consumption)
 // Taller Multi-Agéntico
 // ============================================================================
 // Cada attendee despliega en su propia suscripción.
 // El sufijo único (5 chars) se genera a partir del nombre del tenant temporal.
+//
+// Plan: Flex Consumption (FC1 / Linux)
+// - Identity-based storage completo (sin connection strings para runtime)
+// - No requiere file share pre-creado
+// - Deployment via blob container
+// Basado en: https://github.com/Azure-Samples/azure-functions-flex-consumption-samples
 // ============================================================================
 
 targetScope = 'resourceGroup'
@@ -39,13 +45,16 @@ var functionAppName = 'func-contosoretail-${suffix}'
 var aiFoundryName = 'ais-contosoretail-${suffix}'
 var aiProjectName = 'aip-contosoretail-${suffix}'
 
+// Container para el paquete de deployment de la Function App
+var deploymentContainerName = 'app-package-${toLower(functionAppName)}'
+
 var tags = {
   project: 'taller-multi-agentic'
   environment: 'workshop'
 }
 
 // ============================================================================
-// 1. Storage Account (AVM)
+// 1. Storage Account
 // ============================================================================
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
@@ -60,71 +69,97 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
     supportsHttpsTrafficOnly: true
     minimumTlsVersion: 'TLS1_2'
     allowBlobPublicAccess: false
-    allowSharedKeyAccess: true // requerido por Function App para el content file share
+    allowSharedKeyAccess: false // Flex Consumption soporta identity-based completo
   }
 }
 
-// File share pre-creado para que la Function App no lo intente crear ella misma
-// (evita 403 por timing: el data plane del Storage aún no está listo cuando ARM
-// reporta el Storage Account como "Succeeded")
-resource fileService 'Microsoft.Storage/storageAccounts/fileServices@2023-05-01' = {
+// Blob containers: reports (app) + deployment package
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
   parent: storageAccount
   name: 'default'
 }
 
-resource contentShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-05-01' = {
-  parent: fileService
-  name: toLower(functionAppName)
+resource reportsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'reports'
+}
+
+resource deploymentContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: deploymentContainerName
+}
+
+// Flex Consumption no requiere file share, pero sí table y queue services
+resource tableService 'Microsoft.Storage/storageAccounts/tableServices@2023-05-01' = {
+  parent: storageAccount
+  name: 'default'
+}
+
+resource queueService 'Microsoft.Storage/storageAccounts/queueServices@2023-05-01' = {
+  parent: storageAccount
+  name: 'default'
 }
 
 // ============================================================================
-// 2. App Service Plan (Consumption Y1 - nativo)
+// 2. App Service Plan (Flex Consumption FC1 / Linux)
 // ============================================================================
 
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: appServicePlanName
   location: location
   tags: tags
-  kind: 'functionapp'
   sku: {
-    name: 'Y1'
-    tier: 'Dynamic'
+    name: 'FC1'
+    tier: 'FlexConsumption'
   }
   properties: {
-    reserved: false
+    reserved: true // Linux
   }
 }
 
 // ============================================================================
-// 3. Function App (nativo - evita sub-deployments del AVM)
+// 3. Function App (Flex Consumption / Linux)
 // ============================================================================
-
-var storageConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${storageAccount.listKeys().keys[0].value};EndpointSuffix=core.windows.net'
 
 resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
   name: functionAppName
   location: location
   tags: tags
-  kind: 'functionapp'
-  dependsOn: [contentShare] // esperar a que el file share exista antes de crear la Function App
+  kind: 'functionapp,linux'
   identity: {
     type: 'SystemAssigned'
   }
   properties: {
     serverFarmId: appServicePlan.id
     httpsOnly: true
+    functionAppConfig: {
+      deployment: {
+        storage: {
+          type: 'blobContainer'
+          value: '${storageAccount.properties.primaryEndpoints.blob}${deploymentContainerName}'
+          authentication: {
+            type: 'SystemAssignedIdentity'
+          }
+        }
+      }
+      scaleAndConcurrency: {
+        maximumInstanceCount: 100
+        instanceMemoryMB: 2048
+      }
+      runtime: {
+        name: 'dotnet-isolated'
+        version: '8.0'
+      }
+    }
     siteConfig: {
-      netFrameworkVersion: 'v8.0'
-      use32BitWorkerProcess: false
-      ftpsState: 'Disabled'
       appSettings: [
-        { name: 'AzureWebJobsStorage', value: storageConnectionString }
-        { name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING', value: storageConnectionString }
-        { name: 'WEBSITE_CONTENTSHARE', value: toLower(functionAppName) }
-        { name: 'WEBSITE_SKIP_CONTENTSHARE_VALIDATION', value: '1' }
+        { name: 'AzureWebJobsStorage__credential', value: 'managedidentity' }
+        { name: 'AzureWebJobsStorage__blobServiceUri', value: 'https://${storageAccountName}.blob.${environment().suffixes.storage}' }
+        { name: 'AzureWebJobsStorage__queueServiceUri', value: 'https://${storageAccountName}.queue.${environment().suffixes.storage}' }
+        { name: 'AzureWebJobsStorage__tableServiceUri', value: 'https://${storageAccountName}.table.${environment().suffixes.storage}' }
+        { name: 'StorageAccountName', value: storageAccountName }
         { name: 'FUNCTIONS_EXTENSION_VERSION', value: '~4' }
-        { name: 'FUNCTIONS_WORKER_RUNTIME', value: 'dotnet-isolated' }
-        { name: 'bill-template', value: 'https://raw.githubusercontent.com/nicobytes/taller-multi-agentic/main/assets/bill-template.html' }
+        { name: 'bill-template', value: 'https://raw.githubusercontent.com/warnov/taller-multi-agentic/refs/heads/main/assets/bill-template.html' }
       ]
     }
   }
@@ -133,11 +168,11 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
 // ============================================================================
 // 3b. Role Assignments - Function App → Storage Account
 // ============================================================================
-// La Function App usa Managed Identity para acceder al Storage desde código.
+// La Function App usa Managed Identity para TODO: runtime + código.
 // Se requieren 3 roles:
-//   - Storage Blob Data Owner       → triggers, bindings, blob storage
+//   - Storage Blob Data Owner       → triggers, bindings, blob storage, deployment
 //   - Storage Queue Data Contributor → queue triggers
-//   - Storage Account Contributor   → file share
+//   - Storage Account Contributor   → gestión general
 
 module functionStorageRbac 'storage-rbac.bicep' = {
   name: 'functionStorageRbacDeployment'
