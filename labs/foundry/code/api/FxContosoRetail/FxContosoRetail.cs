@@ -66,7 +66,7 @@ public class FxContosoRetail
         var lines = request.Orders;
 
         // --- Descargar el template HTML ---
-        string templateUrl = _configuration["bill-template"]
+        string templateUrl = _configuration["BillTemplate"]
             ?? "https://raw.githubusercontent.com/warnov/taller-multi-agentic/refs/heads/main/assets/bill-template.html";
 
         string html;

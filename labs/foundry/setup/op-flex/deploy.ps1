@@ -210,15 +210,49 @@ $zipPath = Join-Path $env:TEMP "fxcontosoretail-publish.zip"
 if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
 Compress-Archive -Path "$publishDir\*" -DestinationPath $zipPath -Force
 
-Write-Host "  Desplegando a $functionAppName..." -ForegroundColor Gray
-az functionapp deployment source config-zip `
-    --resource-group $ResourceGroupName `
-    --name $functionAppName `
-    --src $zipPath `
-    --output none 2>&1 | Out-Null
+# Esperar a que el SCM endpoint esté resolvible por DNS (Flex Consumption tarda)
+$scmHost = "$functionAppName.scm.azurewebsites.net"
+Write-Host "  Esperando a que el endpoint SCM esté disponible..." -ForegroundColor Gray
+$dnsReady = $false
+for ($i = 0; $i -lt 30; $i++) {
+    try {
+        [System.Net.Dns]::GetHostAddresses($scmHost) | Out-Null
+        $dnsReady = $true
+        break
+    } catch {
+        Start-Sleep -Seconds 10
+    }
+}
+if (-not $dnsReady) {
+    Write-Warning "  El DNS de $scmHost no resolvió tras 5 minutos. Intentando deploy de todas formas..."
+}
 
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "Error al publicar el código. Revisa los errores anteriores."
+# Deploy con reintentos (hasta 3 intentos con espera incremental)
+$maxRetries = 3
+$deploySuccess = $false
+for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
+    Write-Host "  Desplegando a $functionAppName (intento $attempt/$maxRetries)..." -ForegroundColor Gray
+    az functionapp deployment source config-zip `
+        --resource-group $ResourceGroupName `
+        --name $functionAppName `
+        --src $zipPath `
+        --timeout 600 `
+        --output none 2>&1 | Out-Null
+
+    if ($LASTEXITCODE -eq 0) {
+        $deploySuccess = $true
+        break
+    }
+
+    if ($attempt -lt $maxRetries) {
+        $waitSecs = $attempt * 30
+        Write-Host "  ⚠️  Intento $attempt falló. Reintentando en $waitSecs segundos..." -ForegroundColor Yellow
+        Start-Sleep -Seconds $waitSecs
+    }
+}
+
+if (-not $deploySuccess) {
+    Write-Error "Error al publicar el código tras $maxRetries intentos. Puedes reintentar manualmente con: az functionapp deployment source config-zip --resource-group $ResourceGroupName --name $functionAppName --src `"$zipPath`""
     exit 1
 }
 

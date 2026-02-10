@@ -2,7 +2,7 @@
 #@baseUrl = http://localhost:7071/api
 
 ### Entorno desplegado (reemplazar con valores del resumen de deploy.ps1)
-@baseUrl = https://func-contosoretail-s2qqj.azurewebsites.net/api
+@baseUrl =  [BASE-URL]
 @funcKey = [KEY]
 ###
 
