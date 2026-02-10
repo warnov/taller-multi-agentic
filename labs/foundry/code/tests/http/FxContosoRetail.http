@@ -3,8 +3,7 @@
 
 ### Entorno desplegado (reemplazar con valores del resumen de deploy.ps1)
 @baseUrl = https://func-contosoretail-s2qqj.azurewebsites.net/api
-@funcKey = %5BKEY%5D
-
+@funcKey = [KEY]
 ###
 
 # GET - HolaMundo
