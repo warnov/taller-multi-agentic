@@ -265,18 +265,7 @@ Write-Host "  ✅ Código publicado exitosamente." -ForegroundColor Green
 # --- Resumen final ---
 $functionAppUrl = $outputs.functionAppUrl.value
 
-# Obtener la host key (estable, no cambia con deployments)
-$funcKey = az functionapp keys list `
-    --resource-group $ResourceGroupName `
-    --name $functionAppName `
-    --query 'functionKeys.default' `
-    --output tsv 2>$null
-
-if ($funcKey) {
-    $apiUrl = "$functionAppUrl/api/OrdersReporter?code=$funcKey"
-} else {
-    $apiUrl = "$functionAppUrl/api/OrdersReporter?code=[FUNC_KEY]"
-}
+$apiUrl = "$functionAppUrl/api/OrdersReporter"
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Green

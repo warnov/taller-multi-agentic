@@ -12,6 +12,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Azure.Functions.Worker.Extensions.OpenApi.Extensions;
+using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
+using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Enums;
+using Microsoft.OpenApi.Models;
+using System.Net;
 
 namespace Contoso.Retail.Functions;
 
@@ -31,17 +36,37 @@ public class FxContosoRetail
         _configuration = configuration;
     }
 
+
     [Function("HolaMundo")]
     public IActionResult HolaMundo(
-        [HttpTrigger(AuthorizationLevel.Function, "get")] HttpRequest req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get")] HttpRequest req)
     {
         _logger.LogInformation("Función HolaMundo ejecutada.");
         return new OkObjectResult("¡Hola Mundo!");
     }
 
+
+[OpenApiOperation(operationId: "ordersReporter", tags: new[] { "Reportes" },
+    Summary = "Genera un reporte HTML de órdenes",
+    Description = "Recibe líneas de órdenes de un cliente, genera un reporte HTML con el detalle, lo sube a Blob Storage y retorna la URL con SAS para visualizarlo/descargarlo.")]
+[OpenApiRequestBody(
+    contentType: "application/json",
+    bodyType: typeof(OrdersReportRequest),
+    Required = true,
+    Description = "Datos del cliente y líneas de órdenes a incluir en el reporte")]
+[OpenApiResponseWithBody(
+    statusCode: HttpStatusCode.OK,
+    contentType: "application/json",
+    bodyType: typeof(object),
+    Description = "Objeto JSON con la propiedad 'reportUrl' que contiene la URL SAS del reporte generado")]
+[OpenApiResponseWithBody(
+    statusCode: HttpStatusCode.BadRequest,
+    contentType: "text/plain",
+    bodyType: typeof(string),
+    Description = "Mensaje de error cuando el JSON es inválido o no contiene órdenes")]
     [Function("OrdersReporter")]
     public async Task<IActionResult> OrdersReporter(
-        [HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequest req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequest req)
     {
         _logger.LogInformation("OrdersReporter: procesando solicitud.");
 
@@ -49,7 +74,8 @@ public class FxContosoRetail
         OrdersReportRequest? request;
         try
         {
-            request = await JsonSerializer.DeserializeAsync<OrdersReportRequest>(req.Body);
+            var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            request = await JsonSerializer.DeserializeAsync<OrdersReportRequest>(req.Body, jsonOptions);
         }
         catch (JsonException ex)
         {

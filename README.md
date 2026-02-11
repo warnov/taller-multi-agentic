@@ -29,7 +29,7 @@ El workshop muestra cómo una misma arquitectura puede atender ambos tipos de ne
 
 ### Flujo operativo
 
-El flujo operativo responde a situaciones concretas como disputas de facturación, pagos aparentemente inconsistentes o facturas vencidas. En este flujo, el objetivo es reconstruir los hechos con precisión, interpretarlos y explicar claramente qué está ocurriendo.
+El flujo operativo responde a situaciones concretas como disputas de facturación, pagos aparentemente inconsistentes o facturas vencidas. En este flujo, el objetivo es reconstruir los hechos con precisión, ejecutar las acciones necesarias (como generar reportes) y explicar claramente qué está ocurriendo.
 
 Ejemplos de preguntas operativas:
 
@@ -68,7 +68,7 @@ flowchart LR
         Amy["Amy (Analytics)"]
   end
  subgraph AF["Azure AI Foundry"]
-        Anders["Anders (Interpreter)"]
+        Anders["Anders (Executor)"]
         Julie["Julie (Planner)"]
   end
     MF ~~~ AF
@@ -111,8 +111,8 @@ Puedes consultar la documentación completa aquí: [Database Documentation](./as
 
 ### Azure AI Foundry – Capa de razonamiento
 
-- **Anders (Interpreter Agent)**
-  Interpreta hechos operativos y los traduce en una explicación de negocio clara y estructurada.
+- **Anders (Executor Agent)**
+  Ejecuta acciones operativas concretas como la generación y publicación de reportes, renderizado de facturas y otras tareas que requieren interacción con servicios externos.
 - **Julie (Planner Agent)**
   Convierte señales analíticas en prioridades y planes de acción, incluyendo resúmenes ejecutivos.
 
@@ -150,7 +150,7 @@ El workshop está dividido en laboratorios independientes pero conectados, organ
 
 ### 2. Laboratorios de Azure AI Foundry
 
-- [Lab 4 – Agente Anders: interpretación operativa](./labs/foundry/lab04-anders-interpreter-agent.md)
+- [Lab 4 – Agente Anders: ejecución operativa](./labs/foundry/lab04-anders-executor-agent.md)
 - [Lab 5 – Agente Julie: planificación analítica](./labs/foundry/lab05-julie-planner-agent.md)
 
 ### 3. Laboratorios de Copilot Studio

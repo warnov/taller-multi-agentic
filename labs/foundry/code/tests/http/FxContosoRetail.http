@@ -3,16 +3,15 @@
 
 ### Entorno desplegado (reemplazar con valores del resumen de deploy.ps1)
 @baseUrl =  [BASE-URL]
-@funcKey = [KEY]
 ###
 
 # GET - HolaMundo
-GET {{baseUrl}}/HolaMundo?code={{funcKey}}
+GET {{baseUrl}}/HolaMundo
 
 ###
 
 # POST - OrdersReporter
-POST {{baseUrl}}/OrdersReporter?code={{funcKey}}
+POST {{baseUrl}}/OrdersReporter
 Content-Type: application/json
 
 {
