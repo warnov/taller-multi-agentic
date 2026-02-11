@@ -13,7 +13,7 @@ Para que Anders pueda interactuar con la API de Contoso Retail, definiremos una 
 | **4.1** | Agregar soporte OpenAPI a la Azure Function `FxContosoRetail` |
 | **4.2** | Redesplegar la Function App con los cambios |
 | **4.3** | Verificar la especificación OpenAPI |
-| **4.4** | Crear el agente Anders con **Azure AI Agents Persistent SDK** y una **OpenAPI Tool** que invoca la API |
+| **4.4** | Entender, configurar, ejecutar y probar el agente Anders |
 
 ### Prerrequisitos
 
@@ -195,9 +195,9 @@ Desde la interfaz de Swagger UI puedes explorar los endpoints y probarlos intera
 
 ---
 
-## 4.4 — Crear el agente Anders (Azure AI Agents Persistent + OpenAPI Tool)
+## 4.4 — El agente Anders (Azure AI Agents Persistent + OpenAPI Tool)
 
-En este paso vamos a crear el agente Anders usando el **SDK de Azure AI Agents Persistent** con una **OpenAPI Tool** que permite al agente invocar directamente los endpoints de la Function App de Contoso Retail.
+El código del agente Anders ya está incluido en el repositorio, en la carpeta `labs/foundry/code/agents/AndersAgent`. En esta sección vamos a entender cómo funciona, configurarlo con los datos de tu entorno, ejecutarlo y probarlo.
 
 | Concepto | Descripción |
 |----------|-------------|
@@ -205,54 +205,109 @@ En este paso vamos a crear el agente Anders usando el **SDK de Azure AI Agents P
 | **OpenAPI Tool** | Herramienta que recibe una especificación OpenAPI y permite al agente descubrir e invocar automáticamente los endpoints descritos en ella |
 | **Azure AI Foundry** | Plataforma cloud donde el agente se registra y ejecuta. El proyecto de Foundry proporciona acceso al modelo GPT-4.1 |
 
-El flujo será:
+### Entendiendo el código
 
-1. **Descargar la especificación OpenAPI** de la Function App en tiempo de ejecución
-2. Definir una **OpenAPI Tool** a partir de la especificación descargada
-3. **Crear el agente** en Foundry con `agentsClient.Administration.CreateAgentAsync()` pasándole la tool
-4. **Interactuar** con el agente usando threads y runs con polling
+Abre el archivo `labs/foundry/code/agents/AndersAgent/Program.cs` y observa que está organizado en **3 fases claramente separadas**:
 
-> **¿Cómo funciona?** Cuando el usuario pide un reporte, el modelo GPT-4.1 analiza las herramientas disponibles y decide invocar el endpoint `ordersReporter` descrito en la especificación OpenAPI. El servicio de Foundry ejecuta la llamada HTTP a la Function App automáticamente y envía el resultado de vuelta al modelo para que formule su respuesta al usuario.
+#### Fase 1 — Descargar la especificación OpenAPI
 
-### Paso 1: Crear el proyecto de consola
-
-Desde la raíz del repositorio:
-
-```powershell
-mkdir labs\foundry\code\agents
-cd labs\foundry\code\agents
-dotnet new console -n AndersAgent --framework net8.0
-cd AndersAgent
+```csharp
+var openApiSpecUrl = $"{functionAppBaseUrl}/openapi/v3.json";
+var openApiSpec = await httpClient.GetStringAsync(openApiSpecUrl);
 ```
 
-### Paso 2: Agregar los paquetes NuGet
+El programa descarga la especificación OpenAPI de la Function App **en tiempo de ejecución**. Esto significa que si la API cambia (nuevos endpoints, nuevos parámetros), el agente lo detecta automáticamente al reiniciarse.
 
-```powershell
-dotnet add package Azure.AI.Agents.Persistent --prerelease
-dotnet add package Azure.AI.Projects --prerelease
-dotnet add package Azure.Identity
-dotnet add package Microsoft.Extensions.Configuration.Json
+#### Fase 2 — Buscar o crear el agente en Foundry
+
+Esta fase tiene dos partes importantes:
+
+**Definición de la herramienta OpenAPI:**
+
+```csharp
+var openApiTool = new OpenApiToolDefinition(
+    new OpenApiFunctionDefinition(
+        name: "ContosoRetailAPI",
+        spec: BinaryData.FromString(openApiSpec),
+        openApiAuthentication: new OpenApiAnonymousAuthDetails())
+    {
+        Description = "API de Contoso Retail para generar reportes de órdenes de compra"
+    });
 ```
 
-- **`Azure.AI.Agents.Persistent`** — SDK de agentes persistentes de Azure AI (incluye `OpenApiToolDefinition`, `PersistentAgentsClient`, threads y runs)
-- **`Azure.AI.Projects`** — Foundry SDK (necesario para `AIProjectClient`)
-- **`Azure.Identity`** — Autenticación con `DefaultAzureCredential` (reutiliza tu `az login`)
-- **`Microsoft.Extensions.Configuration.Json`** — Para cargar `appsettings.json`
+Aquí se crea una `OpenApiToolDefinition` que envuelve la especificación descargada. Con `OpenApiAnonymousAuthDetails`, Foundry invocará la API sin enviar credenciales (la Function App usa `AuthorizationLevel.Anonymous`).
 
-> **Nota:** Ambos SDKs de Azure AI están en prerelease. El flag `--prerelease` es necesario.
+**Instrucciones del agente (system prompt):**
 
-### Paso 3: Agregar el proyecto a la solución
+El system prompt incluye el schema JSON exacto que Anders debe construir al invocar la API:
 
-Desde la raíz del repositorio:
-
-```powershell
-cd ..\..\..\..\..
-dotnet sln taller-multi-agentic.sln add labs\foundry\code\agents\AndersAgent\AndersAgent.csproj
+```json
+{
+  "customerName": "Nombre del Cliente",
+  "startDate": "YYYY-MM-DD",
+  "endDate": "YYYY-MM-DD",
+  "orders": [
+    {
+      "orderNumber": "código de la orden",
+      "orderDate": "YYYY-MM-DD",
+      "orderLineNumber": 1,
+      "productName": "nombre del producto",
+      "brandName": "nombre de la marca",
+      "categoryName": "nombre de la categoría",
+      "quantity": 1.0,
+      "unitPrice": 0.00,
+      "lineTotal": 0.00
+    }
+  ]
+}
 ```
 
-### Paso 4: Crear el archivo de configuración
+> [!TIP]
+> Incluir el schema en las instrucciones es una buena práctica cuando el agente debe construir payloads complejos. Aunque la especificación OpenAPI ya describe el schema, reforzarlo en el system prompt reduce significativamente los errores de formato.
 
-Crea un archivo `appsettings.json` en la carpeta `AndersAgent`:
+**Reutilización del agente:**
+
+```csharp
+await foreach (var existingAgent in agentsClient.Administration.GetAgentsAsync())
+{
+    if (existingAgent.Name == "Anders - Agente Ejecutor")
+    {
+        agent = existingAgent;
+        break;
+    }
+}
+```
+
+Antes de crear un agente nuevo, el programa busca si ya existe uno con el mismo nombre. Esto permite reiniciar la aplicación sin duplicar agentes en Foundry.
+
+#### Fase 3 — Chat interactivo con polling
+
+```csharp
+ThreadRun run = (await agentsClient.Runs.CreateRunAsync(thread, agent)).Value;
+
+while (run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress)
+{
+    await Task.Delay(TimeSpan.FromSeconds(1));
+    run = (await agentsClient.Runs.GetRunAsync(thread.Id, run.Id)).Value;
+}
+```
+
+El patrón de interacción sigue este ciclo:
+1. Se crea un `PersistentAgentThread` (la conversación)
+2. El mensaje del usuario se agrega con `CreateMessageAsync()`
+3. Se crea un `ThreadRun` que ejecuta el agente, asociándolo al thread
+4. Se hace **polling** cada segundo hasta que el run termina
+5. Se leen los mensajes de respuesta del agente
+
+> **¿Qué pasa durante el run?** Cuando el modelo decide que necesita llamar a la API, Foundry ejecuta la llamada HTTP automáticamente usando la especificación OpenAPI. El resultado se envía de vuelta al modelo, que formula la respuesta final al usuario. Todo esto ocurre dentro del run — el código solo espera el resultado.
+
+**Limpieza al salir:**
+
+Al escribir `salir`, solo se elimina el thread de conversación. El agente **persiste** en Foundry y se reutiliza automáticamente en la siguiente ejecución.
+
+### Paso 1: Configurar `appsettings.json`
+
+Abre el archivo `labs/foundry/code/agents/AndersAgent/appsettings.json` y reemplaza los valores con los de tu entorno:
 
 ```json
 {
@@ -267,271 +322,59 @@ Crea un archivo `appsettings.json` en la carpeta `AndersAgent`:
 > - **ModelDeploymentName**: `gpt-4.1` (nombre del deployment creado por el Bicep).
 > - **FunctionAppBaseUrl**: La URL de tu Function App + `/api`.
 
-Configura el archivo para que se copie al directorio de salida. Abre `AndersAgent.csproj` y agrega un **nuevo `<ItemGroup>`** después del que ya existe (el de los paquetes NuGet), pero antes de `</Project>`:
-
-```xml
-<ItemGroup>
-  <None Update="appsettings.json">
-    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-  </None>
-</ItemGroup>
-```
-
-> **No lo agregues dentro del `<ItemGroup>` existente** que contiene los `<PackageReference>`. Debe ser un bloque `<ItemGroup>` separado.
-
-### Paso 5: Implementar `Program.cs`
-
-Reemplaza el contenido de `Program.cs` con lo siguiente:
-
-```csharp
-using Azure.AI.Projects;
-using Azure.AI.Agents.Persistent;
-using Azure.Identity;
-using Microsoft.Extensions.Configuration;
-
-#pragma warning disable CA2252 // API en preview
-
-// --- Cargar configuración ---
-var config = new ConfigurationBuilder()
-    .AddJsonFile("appsettings.json")
-    .Build();
-
-var foundryEndpoint = config["FoundryProjectEndpoint"]
-    ?? throw new InvalidOperationException("Falta FoundryProjectEndpoint en appsettings.json");
-var modelDeployment = config["ModelDeploymentName"]
-    ?? throw new InvalidOperationException("Falta ModelDeploymentName en appsettings.json");
-var functionAppBaseUrl = config["FunctionAppBaseUrl"]
-    ?? throw new InvalidOperationException("Falta FunctionAppBaseUrl en appsettings.json");
-
-// =====================================================================
-//  FASE 1: Obtener la especificación OpenAPI de la Function App
-// =====================================================================
-
-Console.WriteLine("[OpenAPI] Descargando especificación desde la Function App...");
-
-var httpClient = new HttpClient();
-var openApiSpecUrl = $"{functionAppBaseUrl}/openapi/v3.json";
-var openApiSpec = await httpClient.GetStringAsync(openApiSpecUrl);
-
-Console.WriteLine($"[OpenAPI] Especificación descargada ({openApiSpec.Length} bytes)");
-
-// =====================================================================
-//  FASE 2: Crear agente con herramienta OpenAPI en Foundry
-// =====================================================================
-
-// Cliente del proyecto Foundry
-var projectClient = new AIProjectClient(
-    new Uri(foundryEndpoint),
-    new DefaultAzureCredential());
-
-// Obtener el cliente de agentes persistentes
-var agentsClient = projectClient.GetPersistentAgentsClient();
-
-// Definir la herramienta OpenAPI a partir de la especificación descargada
-var openApiTool = new OpenApiToolDefinition(
-    new OpenApiFunctionDefinition(
-        name: "ContosoRetailAPI",
-        spec: BinaryData.FromString(openApiSpec),
-        openApiAuthentication: new OpenApiAnonymousAuthDetails())
-    {
-        Description = "API de Contoso Retail para generar reportes de órdenes de compra"
-    });
-
-// Instrucciones del agente Anders
-var andersInstructions = """
-    Eres Anders, el agente ejecutor de Contoso Retail.
-
-    Tu responsabilidad es ejecutar acciones operativas concretas cuando se te soliciten.
-    Tu principal capacidad es generar reportes de órdenes de compra de clientes
-    usando la API de Contoso Retail disponible como herramienta OpenAPI.
-
-    Cuando recibas datos de órdenes, debes construir el JSON del request body
-    con EXACTAMENTE este schema para invocar el endpoint ordersReporter:
-
-    {
-      "customerName": "Nombre del Cliente",
-      "startDate": "YYYY-MM-DD",
-      "endDate": "YYYY-MM-DD",
-      "orders": [
-        {
-          "orderNumber": "código de la orden",
-          "orderDate": "YYYY-MM-DD",
-          "orderLineNumber": 1,
-          "productName": "nombre del producto",
-          "brandName": "nombre de la marca",
-          "categoryName": "nombre de la categoría",
-          "quantity": 1.0,
-          "unitPrice": 0.00,
-          "lineTotal": 0.00
-        }
-      ]
-    }
-
-    Reglas:
-    - TODOS los campos son obligatorios para cada línea de orden.
-    - Si una orden tiene múltiples productos, cada producto es un elemento
-      separado en el array "orders" con el mismo "orderNumber" y "orderDate"
-      pero diferente "orderLineNumber" (secuencial: 1, 2, 3...).
-    - Las fechas deben estar en formato ISO: YYYY-MM-DD.
-    - "quantity", "unitPrice" y "lineTotal" son numéricos (double).
-
-    Siempre confirma la acción realizada al usuario, incluyendo la URL del reporte.
-    Si los datos son insuficientes o inválidos, explica qué falta.
-    Responde en español.
-    """;
-
-Console.WriteLine("[Foundry] Buscando agente Anders existente...");
-
-PersistentAgent? agent = null;
-
-// Buscar si ya existe un agente con el mismo nombre
-await foreach (var existingAgent in agentsClient.Administration.GetAgentsAsync())
-{
-    if (existingAgent.Name == "Anders - Agente Ejecutor")
-    {
-        agent = existingAgent;
-        Console.WriteLine($"[Foundry] Agente existente encontrado: {agent.Name} (ID: {agent.Id})");
-        break;
-    }
-}
-
-if (agent is null)
-{
-    Console.WriteLine("[Foundry] Creando agente Anders con herramienta OpenAPI...");
-
-    agent = (await agentsClient.Administration.CreateAgentAsync(
-        model: modelDeployment,
-        name: "Anders - Agente Ejecutor",
-        description: "Agente ejecutor de Contoso Retail con herramienta OpenAPI",
-        instructions: andersInstructions,
-        tools: new List<ToolDefinition> { openApiTool })).Value;
-
-    Console.WriteLine($"[Foundry] Agente creado: {agent.Name} (ID: {agent.Id})");
-}
-
-// =====================================================================
-//  FASE 3: Interactuar con el agente (threads & runs)
-// =====================================================================
-
-PersistentAgentThread thread = (await agentsClient.Threads.CreateThreadAsync()).Value;
-Console.WriteLine($"[Foundry] Thread creado: {thread.Id}");
-Console.WriteLine();
-Console.WriteLine("=== Chat con Anders (escribe 'salir' para terminar) ===");
-Console.WriteLine();
-
-while (true)
-{
-    Console.Write("Tú: ");
-    var input = Console.ReadLine();
-
-    if (string.IsNullOrWhiteSpace(input) ||
-        input.Equals("salir", StringComparison.OrdinalIgnoreCase))
-        break;
-
-    // Enviar mensaje del usuario al thread
-    await agentsClient.Messages.CreateMessageAsync(
-        threadId: thread.Id,
-        role: MessageRole.User,
-        content: input);
-
-    // Ejecutar el agente sobre el thread
-    ThreadRun run = (await agentsClient.Runs.CreateRunAsync(thread, agent)).Value;
-
-    // Esperar a que el run termine (polling)
-    Console.Write("Anders: ");
-    while (run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress)
-    {
-        await Task.Delay(TimeSpan.FromSeconds(1));
-        run = (await agentsClient.Runs.GetRunAsync(thread.Id, run.Id)).Value;
-    }
-
-    // Procesar resultado
-    if (run.Status == RunStatus.Completed)
-    {
-        // Obtener mensajes del thread (los más recientes primero)
-        var messages = agentsClient.Messages.GetMessagesAsync(threadId: thread.Id);
-
-        await foreach (PersistentThreadMessage message in messages)
-        {
-            // Solo mostrar la primera respuesta del agente (la más reciente)
-            if (message.Role == MessageRole.Agent)
-            {
-                foreach (MessageContent contentItem in message.ContentItems)
-                {
-                    if (contentItem is MessageTextContent textContent)
-                    {
-                        Console.WriteLine(textContent.Text);
-                    }
-                }
-                break;
-            }
-        }
-    }
-    else
-    {
-        Console.WriteLine($"\n[Error] Run terminó con estado: {run.Status}");
-        if (run.LastError != null)
-            Console.WriteLine($"[Error] {run.LastError.Code}: {run.LastError.Message}");
-    }
-    Console.WriteLine();
-}
-
-// =====================================================================
-//  Limpieza del thread (el agente persiste para reutilizarse)
-// =====================================================================
-
-Console.WriteLine("[Foundry] Limpiando thread...");
-await agentsClient.Threads.DeleteThreadAsync(thread.Id);
-Console.WriteLine($"[Foundry] Thread eliminado. El agente '{agent.Name}' (ID: {agent.Id}) permanece disponible.");
-```
-
-> **Observa las 3 fases claramente separadas:**
->
-> | Fase | Qué hace |
-> |------|----------|
-> | **1 — Descargar OpenAPI** | Descarga la especificación OpenAPI de la Function App en tiempo de ejecución y la usa para definir una `OpenApiToolDefinition` |
-> | **2 — Buscar o crear agente** | Busca un agente existente con `GetAgentsAsync()`. Si no existe, lo crea con `CreateAgentAsync()` en Foundry con el modelo, instrucciones y la herramienta OpenAPI |
-> | **3 — Chat con polling** | Crea un `PersistentAgentThread`, envía mensajes con `CreateMessageAsync()`, ejecuta runs con `CreateRunAsync()` y espera resultados con polling |
-
-### Paso 6: Compilar y verificar
+### Paso 2: Compilar y ejecutar
 
 ```powershell
 cd labs\foundry\code\agents\AndersAgent
 dotnet build
 ```
 
-Asegúrate de que no haya errores de compilación antes de continuar.
-
-### Paso 7: Ejecutar al agente Anders
+Asegúrate de que no haya errores de compilación. Luego ejecuta:
 
 ```powershell
 dotnet run
 ```
 
-Verás el prompt interactivo. Pruébalo primero con un saludo:
+Verás en consola que el agente se crea en Foundry (o se reutiliza si ya existía).
+
+### Paso 3: Inspeccionar el agente en Azure AI Foundry
+
+**Antes de interactuar con Anders**, ve al portal para inspeccionar lo que se creó:
+
+1. Abre [Azure AI Foundry](https://ai.azure.com) y navega a tu proyecto
+2. En el menú lateral, selecciona **Agents**
+3. Busca el agente **"Anders - Agente Ejecutor"** y haz clic en él
+
+Observa dos cosas clave:
+
+- **System prompt (instrucciones):** Verás las instrucciones completas que le dimos al agente, incluyendo el schema JSON. Esto es lo que guía su comportamiento al decidir cuándo y cómo invocar la API.
+- **Tools (herramientas):** Verás **ContosoRetailAPI** listada como herramienta OpenAPI. Puedes expandirla para ver la especificación completa con el endpoint `ordersReporter`, los schemas de request/response, y la configuración de autenticación anónima.
+
+> [!TIP]
+> El system prompt y las tools son los dos pilares que determinan qué puede hacer un agente y cómo lo hace. Entender esta relación es clave para diseñar agentes efectivos.
+
+### Paso 4: Probar el agente
+
+De vuelta en la consola, pruébalo primero con un saludo:
 
 ```
 Tú: Hola Anders, ¿qué puedes hacer?
 ```
 
-Anders debería responder explicando que puede generar reportes de órdenes. Luego, prueba con datos reales:
+Anders debería responder explicando que puede generar reportes de órdenes. Luego, prueba con datos reales (pega todo en una sola línea):
 
 ```
 Tú: Genera un reporte para Izabella Celma (periodo: 1-31 enero 2026). Orden ORD-CID-069-001 (2026-01-04): Sport-100 Helmet Black, Contoso Outdoor, Helmets, 6x$34.99=$209.94 | HL Road Frame Red 62, Contoso Outdoor, Road Frames, 10x$1431.50=$14315.00 | Long-Sleeve Logo Jersey S, Contoso Outdoor, Jerseys, 8x$49.99=$399.92. Orden ORD-CID-069-003 (2026-01-08): HL Road Frame Black 58, Contoso Outdoor, Road Frames, 3x$1431.50=$4294.50 | HL Road Frame Red 44, Contoso Outdoor, Road Frames, 7x$1431.50=$10020.50. Orden ORD-CID-069-002 (2026-01-17): HL Road Frame Red 62, Contoso Outdoor, Road Frames, 2x$1431.50=$2863.00 | LL Road Frame Black 60, Contoso Outdoor, Road Frames, 4x$337.22=$1348.88.
 ```
 
-> **Formato del prompt:** Cada orden se separa con un punto (`.`). Dentro de cada orden, las líneas se separan con pipe (`|`). Cada línea tiene: producto, marca, categoría, cantidad x precio unitario = total.
-
 Lo que ocurre internamente:
-1. Anders analiza el mensaje y decide que necesita llamar al endpoint `ordersReporter` de la API OpenAPI
-2. **Foundry ejecuta la llamada HTTP** automáticamente a la Function App con los datos del cliente y las órdenes
-3. La Function App genera el reporte HTML, lo sube a Blob Storage, y retorna la URL
+1. Anders analiza el mensaje y decide que necesita llamar al endpoint `ordersReporter`
+2. **Foundry ejecuta la llamada HTTP** automáticamente a la Function App con los datos estructurados según el schema
+3. La Function App genera el reporte HTML, lo sube a Blob Storage y retorna la URL
 4. Foundry envía el resultado de vuelta al modelo
 5. Anders formula su respuesta y presenta la URL al usuario
 
-Verás en la consola los mensajes `[OpenAPI]` y `[Foundry]` indicando el progreso.
-
-Puedes abrir la URL del reporte en el navegador para verificar que se generó correctamente.
+Abre la URL del reporte en el navegador para verificar que se generó correctamente.
 
 Ahora prueba con un caso más sencillo — un solo pedido con dos productos:
 
