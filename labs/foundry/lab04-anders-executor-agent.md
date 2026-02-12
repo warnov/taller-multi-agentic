@@ -17,10 +17,48 @@ Para que Anders pueda interactuar con la API de Contoso Retail, definiremos una 
 
 ### Prerrequisitos
 
+#### Herramientas en tu máquina
+
+| Herramienta | Descripción | Descarga |
+|-------------|-------------|----------|
+| **.NET 8 SDK** | Compilar y ejecutar la Function App y el agente Anders | [Descargar](https://dotnet.microsoft.com/download/dotnet/8.0) |
+| **Azure CLI** | Autenticarse en Azure, desplegar recursos y asignar roles RBAC | [Instalar](https://learn.microsoft.com/cli/azure/install-azure-cli) |
+| **Azure Functions Core Tools** | Publicar la Function App a Azure (opción recomendada) | [Instalar](https://learn.microsoft.com/azure/azure-functions/functions-run-local#install-the-azure-functions-core-tools) |
+| **PowerShell** | Ejecutar scripts de despliegue | Windows: incluido · macOS/Linux: [Instalar PowerShell 7+](https://learn.microsoft.com/powershell/scripting/install/installing-powershell) |
+| **Git** | Clonar el repositorio del taller | [Descargar](https://git-scm.com/downloads) |
+
+> [!TIP]
+> En **macOS**, puedes instalar las herramientas con Homebrew:
+> ```bash
+> brew install dotnet-sdk azure-cli azure-functions-core-tools@4 powershell git
+> ```
+
+#### Infraestructura Azure
+
 - Haber completado el **setup de infraestructura** descrito en el [README de Foundry](README.md)
-- Haber asignado el rol **Azure AI Developer** sobre el recurso de AI Services (ver sección "Permisos RBAC" en el [README](README.md#permisos-rbac-para-azure-ai-foundry))
-- Tener anotada la **URL de la Function App** y el **nombre de la Function App** (`func-contosoretail-{suffix}`) de la salida del despliegue
-- **.NET 8 SDK** instalado ([descargar](https://dotnet.microsoft.com/download/dotnet/8.0))
+- Tener anotados **todos los valores generados en el despliegue** de la infraestructura (nombres de recursos, URLs, sufijo, endpoint de AI Foundry, etc.)
+
+#### Permisos RBAC
+
+Tu usuario necesita el rol **Cognitive Services User** sobre el recurso de AI Services para poder crear y ejecutar agentes. Como tu usuario es **Owner del tenant**, puedes asignarte el rol tú mismo.
+
+Ejecuta los siguientes comandos (reemplaza `{suffix}` con tu sufijo de 5 caracteres):
+
+```powershell
+# 1. Obtener tu nombre de usuario (UPN)
+$upn = az account show --query "user.name" -o tsv
+
+# 2. Obtener el nombre del recurso de AI Services (si no lo recuerdas)
+az cognitiveservices account list --resource-group rg-contoso-retail --query "[].name" -o tsv
+
+# 3. Asignar el rol Cognitive Services User
+az role assignment create `
+    --assignee $upn `
+    --role "Cognitive Services User" `
+    --scope "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/rg-contoso-retail/providers/Microsoft.CognitiveServices/accounts/ais-contosoretail-{suffix}"
+```
+
+> **Nota:** La propagación de RBAC puede tardar hasta 1 minuto. Espera antes de continuar con el lab.
 
 ---
 

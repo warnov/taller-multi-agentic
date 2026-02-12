@@ -180,8 +180,6 @@ az resource list --resource-group rg-contoso-retail --output table
 
 Para que los agentes puedan crearse y ejecutarse en Azure AI Foundry, tu usuario necesita el rol **Cognitive Services User** sobre el recurso de AI Services. Este rol incluye el data action `Microsoft.CognitiveServices/*` necesario para operaciones de agentes. Si no lo tienes, obtendrás un error `PermissionDenied` al intentar crear agentes.
 
-> **Nota:** El rol "Azure AI Developer" **no es suficiente** — no incluye el data action `Microsoft.CognitiveServices/accounts/AIServices/agents/write` requerido para crear agentes.
-
 Ejecuta los siguientes comandos para asignar el rol (reemplaza `{suffix}` con tu sufijo de 5 caracteres):
 
 ```powershell
