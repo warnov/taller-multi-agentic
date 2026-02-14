@@ -275,9 +275,7 @@ Write-Host ""
 Write-Host "  Sufijo único:        $($outputs.suffix.value)" -ForegroundColor White
 Write-Host "  Storage Account:     $($outputs.storageAccountName.value)" -ForegroundColor White
 Write-Host "  Function App:        $functionAppName" -ForegroundColor White
-Write-Host "  Function App URL:    $functionAppUrl" -ForegroundColor White
-Write-Host "  API OrdersReporter:  $apiUrl" -ForegroundColor White
-Write-Host "  AI Foundry:          $($outputs.aiFoundryName.value)" -ForegroundColor White
-Write-Host "  AI Foundry Endpoint: $($outputs.aiFoundryEndpoint.value)" -ForegroundColor White
-Write-Host "  AI Project:          $($outputs.aiProjectName.value)" -ForegroundColor White
+Write-Host "  Function App Base URL:      $functionAppUrl/api" -ForegroundColor White
+Write-Host "  API OrdersReporter:          $apiUrl" -ForegroundColor White
+Write-Host "  Foundry Project Endpoint:    $($outputs.foundryProjectEndpoint.value)" -ForegroundColor White
 Write-Host ""
