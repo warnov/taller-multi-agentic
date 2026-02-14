@@ -232,3 +232,4 @@ output functionAppUrl string = 'https://${functionAppName}.azurewebsites.net'
 output aiFoundryName string = aiFoundryName
 output aiFoundryEndpoint string = aiFoundry.properties.endpoint
 output aiProjectName string = aiProjectName
+output foundryProjectEndpoint string = aiProject.properties.endpoints['AI Foundry API']

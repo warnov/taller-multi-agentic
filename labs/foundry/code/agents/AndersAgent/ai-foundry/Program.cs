@@ -1,4 +1,4 @@
-﻿using Azure.AI.Projects;
+using Azure.AI.Projects;
 using Azure.AI.Agents.Persistent;
 using Azure.Identity;
 using Microsoft.Extensions.Configuration;
@@ -197,4 +197,3 @@ while (true)
 Console.WriteLine("[Foundry] Limpiando thread...");
 await agentsClient.Threads.DeleteThreadAsync(thread.Id);
 Console.WriteLine($"[Foundry] Thread eliminado. El agente '{agent.Name}' (ID: {agent.Id}) permanece disponible.");
-
