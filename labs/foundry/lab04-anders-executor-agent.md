@@ -233,19 +233,42 @@ Desde la interfaz de Swagger UI puedes explorar los endpoints y probarlos intera
 
 ---
 
-## 4.4 — El agente Anders (Azure AI Agents Persistent + OpenAPI Tool)
+## 4.4 — El agente Anders: Dos versiones de SDK
 
-El código del agente Anders ya está incluido en el repositorio, en la carpeta `labs/foundry/code/agents/AndersAgent`. En esta sección vamos a entender cómo funciona, configurarlo con los datos de tu entorno, ejecutarlo y probarlo.
+La implementación del agente Anders se proporciona en **dos versiones separadas**, cada una ubicada bajo `labs/foundry/code/agents/AndersAgent/`:
 
-| Concepto | Descripción |
-|----------|-------------|
-| **Azure AI Agents Persistent** | SDK para crear agentes persistentes en Azure AI Foundry, gestionar threads de conversación y ejecutar runs |
-| **OpenAPI Tool** | Herramienta que recibe una especificación OpenAPI y permite al agente descubrir e invocar automáticamente los endpoints descritos en ella |
-| **Azure AI Foundry** | Plataforma cloud donde el agente se registra y ejecuta. El proyecto de Foundry proporciona acceso al modelo GPT-4.1 |
+| Carpeta | SDK | Paradigma de API | Estado |
+|---------|-----|------------------|--------|
+| `ai-foundry/` | `Azure.AI.Projects` + `Azure.AI.Agents.Persistent` | Persistent Agents (threads, runs, polling) | GA — se conserva por retrocompatibilidad |
+| `ms-foundry/` | `Azure.AI.Projects` + `Azure.AI.Projects.OpenAI` | Responses API (conversaciones, respuestas de proyecto) | **Preview** (a febrero 2026) — **recomendada** |
 
-### Entendiendo el código
+### ¿Por qué dos versiones?
 
-Abre el archivo `labs/foundry/code/agents/AndersAgent/Program.cs` y observa que está organizado en **3 fases claramente separadas**:
+A finales de 2025, Microsoft introdujo una **nueva experiencia para Microsoft Foundry** basada en la **Responses API** y una superficie de gestión de agentes rediseñada. Esta nueva experiencia — expuesta a través del paquete `Azure.AI.Projects.OpenAI` — reemplaza el modelo anterior de Persistent Agents (`Azure.AI.Agents.Persistent`) con un enfoque más ágil que utiliza **agentes con nombre y versionado**, **conversaciones** y la **Responses API** en lugar de threads y runs con polling.
+
+Las diferencias clave entre ambos enfoques son:
+
+| Aspecto | `ai-foundry/` (Persistent Agents) | `ms-foundry/` (Responses API) |
+|---------|-----------------------------------|-------------------------------|
+| **Ciclo de vida del agente** | Se crea con un ID generado; se busca por nombre iterando la lista | Se crea/actualiza por nombre con versionado explícito (`CreateAgentVersionAsync`) |
+| **Modelo de conversación** | `PersistentAgentThread` + `ThreadRun` con polling | `ProjectConversation` + `ProjectResponsesClient` — respuesta síncrona |
+| **Definición de herramientas** | `OpenApiToolDefinition` con clases tipadas | Protocol method vía `BinaryContent` (los tipos son internos en SDK 1.2.x) |
+| **Patrón de chat** | Crear run → hacer polling hasta completar → leer mensajes | Una sola llamada a `CreateResponse()` retorna la salida directamente |
+
+### ¿Cuál versión debo usar?
+
+**Se recomienda la versión `ms-foundry/`** para desarrollo nuevo. Está alineada con la dirección de la plataforma Microsoft Foundry y ofrece un modelo de programación más simple — particularmente la eliminación del loop de polling en favor de una sola llamada síncrona de respuesta.
+
+La versión `ai-foundry/` se conserva en este taller por **retrocompatibilidad**: los asistentes cuyos recursos de Azure AI Services fueron aprovisionados antes de que la nueva experiencia estuviera disponible pueden completar el lab usando la API de Persistent Agents.
+
+> [!IMPORTANT]
+> A febrero de 2026, el paquete `Azure.AI.Projects.OpenAI` y la Responses API están en **preview pública**. Las formas de la API, schemas de payload y tipos del SDK pueden cambiar antes de alcanzar disponibilidad general (GA). Si encuentras problemas como propiedades faltantes o renombradas (por ejemplo, el campo `kind` requerido en el payload de definición del agente), consulta las últimas [notas de versión de Azure.AI.Projects.OpenAI](https://www.nuget.org/packages/Azure.AI.Projects.OpenAI) para conocer los cambios que rompen compatibilidad.
+
+---
+
+### Entendiendo el código (versión `ms-foundry/` — recomendada)
+
+Abre el archivo `labs/foundry/code/agents/AndersAgent/ms-foundry/Program.cs` y observa que está organizado en **3 fases**:
 
 #### Fase 1 — Descargar la especificación OpenAPI
 
@@ -256,26 +279,45 @@ var openApiSpec = await httpClient.GetStringAsync(openApiSpecUrl);
 
 El programa descarga la especificación OpenAPI de la Function App **en tiempo de ejecución**. Esto significa que si la API cambia (nuevos endpoints, nuevos parámetros), el agente lo detecta automáticamente al reiniciarse.
 
-#### Fase 2 — Buscar o crear el agente en Foundry
+#### Fase 2 — Verificar agente existente o crear uno nuevo
 
-Esta fase tiene dos partes importantes:
+Esta fase tiene dos partes clave:
 
-**Definición de la herramienta OpenAPI:**
+**Detección de agente existente:**
+
+Antes de crear una nueva versión, el programa verifica si el agente ya existe llamando a `GetAgent`. Si lo encuentra, le pregunta al usuario si desea conservar el agente existente o sobreescribirlo con una nueva versión. Esto evita la proliferación innecesaria de versiones del agente durante el desarrollo iterativo.
+
+**Definición del agente con herramienta OpenAPI (protocol method):**
 
 ```csharp
-var openApiTool = new OpenApiToolDefinition(
-    new OpenApiFunctionDefinition(
-        name: "ContosoRetailAPI",
-        spec: BinaryData.FromString(openApiSpec),
-        openApiAuthentication: new OpenApiAnonymousAuthDetails())
+var agentDefinitionJson = new
+{
+    definition = new
     {
-        Description = "API de Contoso Retail para generar reportes de órdenes de compra"
-    });
+        kind = "prompt",
+        model = modelDeployment,
+        instructions = andersInstructions,
+        tools = new object[]
+        {
+            new
+            {
+                type = "openapi",
+                openapi = new
+                {
+                    name = "ContosoRetailAPI",
+                    description = "API de Contoso Retail...",
+                    spec = openApiSpecJson,
+                    auth = new { type = "anonymous" }
+                }
+            }
+        }
+    }
+};
 ```
 
-Aquí se crea una `OpenApiToolDefinition` que envuelve la especificación descargada. Con `OpenApiAnonymousAuthDetails`, Foundry invocará la API sin enviar credenciales (la Function App usa `AuthorizationLevel.Anonymous`).
+Dado que los tipos `OpenApiAgentTool` son internos en el SDK 1.2.x, la definición de la herramienta se construye como un objeto anónimo y se serializa vía `BinaryContent`. El campo `kind = "prompt"` es requerido por la API para indicar un agente basado en prompt.
 
-**Instrucciones del agente (system prompt):**
+**System prompt (instrucciones):**
 
 El system prompt incluye el schema JSON exacto que Anders debe construir al invocar la API:
 
@@ -306,46 +348,46 @@ El system prompt incluye el schema JSON exacto que Anders debe construir al invo
 **Reutilización del agente:**
 
 ```csharp
-await foreach (var existingAgent in agentsClient.Administration.GetAgentsAsync())
+try
 {
-    if (existingAgent.Name == "Anders - Agente Ejecutor")
-    {
-        agent = existingAgent;
-        break;
-    }
+    existingAgent = projectClient.Agents.GetAgent(agentName);
+    // Pregunta al usuario si desea sobreescribir o conservar
+}
+catch (ClientResultException ex) when (ex.Status == 404)
+{
+    // Agente no encontrado — crear uno nuevo
 }
 ```
 
-Antes de crear un agente nuevo, el programa busca si ya existe uno con el mismo nombre. Esto permite reiniciar la aplicación sin duplicar agentes en Foundry.
+Antes de crear una nueva versión del agente, el programa intenta recuperar el agente existente por nombre. Si lo encuentra, le pide al usuario que confirme si desea sobreescribirlo. Esto evita crear versiones innecesarias en Foundry al reiniciar la aplicación.
 
-#### Fase 3 — Chat interactivo con polling
+#### Fase 3 — Chat interactivo con Responses API
 
 ```csharp
-ThreadRun run = (await agentsClient.Runs.CreateRunAsync(thread, agent)).Value;
+ProjectConversation conversation = projectClient.OpenAI.Conversations.CreateProjectConversation();
+ProjectResponsesClient responseClient = projectClient.OpenAI.GetProjectResponsesClientForAgent(
+    defaultAgent: agentName,
+    defaultConversationId: conversation.Id);
 
-while (run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress)
-{
-    await Task.Delay(TimeSpan.FromSeconds(1));
-    run = (await agentsClient.Runs.GetRunAsync(thread.Id, run.Id)).Value;
-}
+ResponseResult response = responseClient.CreateResponse(input);
+Console.WriteLine(response.GetOutputText());
 ```
 
-El patrón de interacción sigue este ciclo:
-1. Se crea un `PersistentAgentThread` (la conversación)
-2. El mensaje del usuario se agrega con `CreateMessageAsync()`
-3. Se crea un `ThreadRun` que ejecuta el agente, asociándolo al thread
-4. Se hace **polling** cada segundo hasta que el run termina
-5. Se leen los mensajes de respuesta del agente
+El patrón de interacción en la versión `ms-foundry/` es más simple que el enfoque de Persistent Agents:
+1. Se crea una `ProjectConversation` (el contexto de conversación)
+2. Se obtiene un `ProjectResponsesClient`, vinculado al agente y la conversación
+3. Cada mensaje del usuario se envía vía `CreateResponse()` que retorna la salida **síncronamente** — sin necesidad de loop de polling
+4. El texto de respuesta se extrae con `GetOutputText()`
 
-> **¿Qué pasa durante el run?** Cuando el modelo decide que necesita llamar a la API, Foundry ejecuta la llamada HTTP automáticamente usando la especificación OpenAPI. El resultado se envía de vuelta al modelo, que formula la respuesta final al usuario. Todo esto ocurre dentro del run — el código solo espera el resultado.
+> **¿Qué pasa durante una llamada de respuesta?** Cuando el modelo decide que necesita llamar a la API, Foundry ejecuta la llamada HTTP automáticamente usando la especificación OpenAPI. El resultado se envía de vuelta al modelo, que formula la respuesta final al usuario. Todo esto ocurre dentro de la única llamada a `CreateResponse()` — el código simplemente recibe la respuesta terminada.
 
 **Limpieza al salir:**
 
-Al escribir `salir`, solo se elimina el thread de conversación. El agente **persiste** en Foundry y se reutiliza automáticamente en la siguiente ejecución.
+Cuando el usuario escribe `salir`, el loop de chat termina. El agente **persiste** en Foundry y se reutiliza automáticamente en la siguiente ejecución.
 
 ### Paso 1: Configurar `appsettings.json`
 
-Abre el archivo `labs/foundry/code/agents/AndersAgent/appsettings.json` y reemplaza los valores con los de tu entorno:
+Abre el archivo `labs/foundry/code/agents/AndersAgent/ms-foundry/appsettings.json` y reemplaza los valores con los de tu entorno:
 
 ```json
 {
@@ -363,7 +405,7 @@ Abre el archivo `labs/foundry/code/agents/AndersAgent/appsettings.json` y reempl
 ### Paso 2: Compilar y ejecutar
 
 ```powershell
-cd labs\foundry\code\agents\AndersAgent
+cd labs\foundry\code\agents\AndersAgent\ms-foundry
 dotnet build
 ```
 
@@ -373,7 +415,7 @@ Asegúrate de que no haya errores de compilación. Luego ejecuta:
 dotnet run
 ```
 
-Verás en consola que el agente se crea en Foundry (o se reutiliza si ya existía).
+Verás en consola que el agente verifica si ya existe una versión en Foundry. Si la encuentra, te preguntará si deseas conservarla o sobreescribirla. Si no existe, se crea un agente nuevo automáticamente.
 
 ### Paso 3: Inspeccionar el agente en Azure AI Foundry
 
@@ -381,7 +423,7 @@ Verás en consola que el agente se crea en Foundry (o se reutiliza si ya existí
 
 1. Abre [Azure AI Foundry](https://ai.azure.com) y navega a tu proyecto
 2. En el menú lateral, selecciona **Agents**
-3. Busca el agente **"Anders - Agente Ejecutor"** y haz clic en él
+3. Busca el agente **"Anders"** y haz clic en él
 
 Observa dos cosas clave:
 
@@ -420,7 +462,38 @@ Ahora prueba con un caso más sencillo — un solo pedido con dos productos:
 Tú: Genera un reporte para Marco Rivera (periodo: 5-10 febrero 2026). Orden ORD-CID-112-001 (2026-02-07): Mountain Bike Socks M, Contoso Outdoor, Socks, 3x$9.50=$28.50 | Water Bottle 30oz, Contoso Outdoor, Bottles and Cages, 1x$6.99=$6.99.
 ```
 
-> **Nota:** Al escribir `salir`, solo se elimina el thread de conversación. El agente **persiste** en Foundry y se reutiliza automáticamente en la siguiente ejecución.
+> **Nota:** Al escribir `salir`, solo se termina la conversación. El agente **persiste** en Foundry y se reutiliza automáticamente en la siguiente ejecución.
+
+---
+
+## Solución de problemas
+
+### Storage Account bloqueado por política (error 503)
+
+En suscripciones con políticas estrictas de Azure, el Storage Account que respalda la Function App puede tener su **acceso público de red deshabilitado** automáticamente después del aprovisionamiento. Esto impide que el host de Functions alcance su propio almacenamiento, causando un error persistente **503 (Site Unavailable)** — aunque la app reporte como `Running` y `Enabled`.
+
+**Síntomas:**
+- La Function App aparece como `Running` en el Portal de Azure y CLI
+- Todas las restricciones de acceso de red muestran "Allow all"
+- Cada solicitud HTTP a cualquier endpoint retorna 503 después de un timeout de ~60 segundos
+
+**Diagnóstico:**
+```powershell
+az storage account show --name stcontosoretail<suffix> --resource-group rg-contoso-retail --query "publicNetworkAccess" -o tsv
+```
+
+Si retorna `Disabled`, esa es la causa raíz.
+
+**Solución:**
+
+Se incluye un script de conveniencia en el repositorio:
+
+```powershell
+cd labs/foundry/setup
+.\unlock-storage.ps1 -Suffix "<tu-sufijo-de-5-caracteres>"
+```
+
+Este script habilita el acceso público de red en el Storage Account y reinicia la Function App. Ver [unlock-storage.ps1](setup/unlock-storage.ps1) para detalles.
 
 ---
 

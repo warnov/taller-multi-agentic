@@ -96,49 +96,79 @@ AIProjectClient projectClient = new(
     endpoint: new Uri(foundryEndpoint),
     tokenProvider: new DefaultAzureCredential());
 
-// Construir el JSON con la definición del agente incluyendo herramienta OpenAPI
-// (los tipos OpenApiAgentTool son internos, se usa protocol method con BinaryContent)
-Console.WriteLine("[Foundry] Creando/actualizando agente Anders con herramienta OpenAPI...");
+// Verificar si el agente ya existe
+bool shouldCreateAgent = true;
+AgentRecord? existingAgent = null;
 
-var openApiSpecJson = JsonSerializer.Deserialize<JsonElement>(openApiSpec);
-
-var agentDefinitionJson = new
+Console.WriteLine($"[Foundry] Buscando agente existente '{agentName}'...");
+try
 {
-    definition = new
+    existingAgent = projectClient.Agents.GetAgent(agentName);
+    Console.WriteLine($"[Foundry] Agente encontrado: {existingAgent.Name} (ID: {existingAgent.Id})");
+    Console.Write("[Foundry] ¿Desea sobreescribirlo con una nueva versión? (s/N): ");
+    var answer = Console.ReadLine();
+    shouldCreateAgent = answer?.Trim().Equals("s", StringComparison.OrdinalIgnoreCase) == true
+                     || answer?.Trim().Equals("si", StringComparison.OrdinalIgnoreCase) == true
+                     || answer?.Trim().Equals("sí", StringComparison.OrdinalIgnoreCase) == true;
+
+    if (!shouldCreateAgent)
     {
-        type = "prompt",
-        model = modelDeployment,
-        instructions = andersInstructions,
-        tools = new object[]
+        Console.WriteLine("[Foundry] Se conserva el agente existente.");
+    }
+}
+catch (ClientResultException ex) when (ex.Status == 404)
+{
+    Console.WriteLine($"[Foundry] No se encontró un agente existente con nombre '{agentName}'. Se creará uno nuevo.");
+}
+
+AgentRecord agentRecord;
+
+if (shouldCreateAgent)
+{
+    // Construir el JSON con la definición del agente incluyendo herramienta OpenAPI
+    // (los tipos OpenApiAgentTool son internos, se usa protocol method con BinaryContent)
+    Console.WriteLine("[Foundry] Creando/actualizando agente Anders con herramienta OpenAPI...");
+
+    var openApiSpecJson = JsonSerializer.Deserialize<JsonElement>(openApiSpec);
+
+    var agentDefinitionJson = new
+    {
+        definition = new
         {
-            new
+            kind = "prompt",
+            model = modelDeployment,
+            instructions = andersInstructions,
+            tools = new object[]
             {
-                type = "openapi",
-                openapi = new
+                new
                 {
-                    name = "ContosoRetailAPI",
-                    description = "API de Contoso Retail para generar reportes de órdenes de compra",
-                    spec = openApiSpecJson,
-                    auth = new { type = "anonymous" }
+                    type = "openapi",
+                    openapi = new
+                    {
+                        name = "ContosoRetailAPI",
+                        description = "API de Contoso Retail para generar reportes de órdenes de compra",
+                        spec = openApiSpecJson,
+                        auth = new { type = "anonymous" }
+                    }
                 }
             }
         }
-    }
-};
+    };
 
-var jsonContent = JsonSerializer.Serialize(agentDefinitionJson, new JsonSerializerOptions { WriteIndented = false });
-var result = await projectClient.Agents.CreateAgentVersionAsync(
-    agentName,
-    BinaryContent.Create(BinaryData.FromString(jsonContent)),
-    new RequestOptions());
+    var jsonContent = JsonSerializer.Serialize(agentDefinitionJson, new JsonSerializerOptions { WriteIndented = false });
+    var result = await projectClient.Agents.CreateAgentVersionAsync(
+        agentName,
+        BinaryContent.Create(BinaryData.FromString(jsonContent)),
+        new RequestOptions());
 
-// Parsear respuesta para obtener info del agente
-var responseJson = JsonDocument.Parse(result.GetRawResponse().Content.ToString());
-var version = responseJson.RootElement.TryGetProperty("version", out var vProp) ? vProp.GetString() : "?";
-Console.WriteLine($"[Foundry] Agente creado/actualizado: {agentName} (v{version})");
+    // Parsear respuesta para obtener info del agente
+    var responseJson = JsonDocument.Parse(result.GetRawResponse().Content.ToString());
+    var version = responseJson.RootElement.TryGetProperty("version", out var vProp) ? vProp.GetString() : "?";
+    Console.WriteLine($"[Foundry] Agente creado/actualizado: {agentName} (v{version})");
+}
 
 // Obtener el agente registrado
-AgentRecord agentRecord = projectClient.Agents.GetAgent(agentName);
+agentRecord = projectClient.Agents.GetAgent(agentName);
 Console.WriteLine($"[Foundry] Agente obtenido: {agentRecord.Name} (ID: {agentRecord.Id})");
 
 // =====================================================================
