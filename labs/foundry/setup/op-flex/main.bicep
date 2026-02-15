@@ -33,6 +33,12 @@ param gptModelVersion string = '2025-04-14'
 @description('Capacidad del deployment (tokens por minuto en miles).')
 param gptDeploymentCapacity int = 30
 
+@description('Endpoint SQL del Warehouse de Fabric (sin protocolo), por ejemplo: xyz.datawarehouse.fabric.microsoft.com')
+param fabricWarehouseSqlEndpoint string = ''
+
+@description('Nombre de la base de datos del Warehouse de Fabric.')
+param fabricWarehouseDatabase string = ''
+
 // ============================================================================
 // Variables - Sufijo y nombres
 // ============================================================================
@@ -47,6 +53,13 @@ var aiProjectName = 'aip-contosoretail-${suffix}'
 
 // Container para el paquete de deployment de la Function App
 var deploymentContainerName = 'app-package-${toLower(functionAppName)}'
+var fabricWarehouseConnectionString = 'Server=tcp:${fabricWarehouseSqlEndpoint},1433;Database=${fabricWarehouseDatabase};Encrypt=True;TrustServerCertificate=False;Authentication=Active Directory Default;Connection Timeout=30;'
+var hasFabricWarehouseConfig = !empty(fabricWarehouseSqlEndpoint) && !empty(fabricWarehouseDatabase)
+var optionalFabricSettings = hasFabricWarehouseConfig
+  ? [
+      { name: 'FabricWarehouseConnectionString', value: fabricWarehouseConnectionString }
+    ]
+  : []
 
 var tags = {
   project: 'taller-multi-agentic'
@@ -152,7 +165,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
       }
     }
     siteConfig: {
-      appSettings: [
+      appSettings: concat([
         { name: 'AzureWebJobsStorage__credential', value: 'managedidentity' }
         { name: 'AzureWebJobsStorage__blobServiceUri', value: 'https://${storageAccountName}.blob.${environment().suffixes.storage}' }
         { name: 'AzureWebJobsStorage__queueServiceUri', value: 'https://${storageAccountName}.queue.${environment().suffixes.storage}' }
@@ -160,7 +173,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         { name: 'StorageAccountName', value: storageAccountName }
         { name: 'FUNCTIONS_EXTENSION_VERSION', value: '~4' }
         { name: 'BillTemplate', value: 'https://raw.githubusercontent.com/warnov/taller-multi-agentic/refs/heads/main/assets/bill-template.html' }
-      ]
+      ], optionalFabricSettings)
     }
   }
 }

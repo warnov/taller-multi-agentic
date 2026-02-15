@@ -37,6 +37,9 @@ Para que Anders pueda interactuar con la API de Contoso Retail, definiremos una 
 
 - Haber completado el **setup de infraestructura** descrito en el [README de Foundry](README.md)
 - Tener anotados **todos los valores generados en el despliegue** de la infraestructura (nombres de recursos, URLs, sufijo, endpoint de AI Foundry, etc.)
+- Tener identificados estos 2 valores del Warehouse de Fabric (se usan en el setup actualizado):
+    - `FabricWarehouseSqlEndpoint`
+    - `FabricWarehouseDatabase`
 
 #### Permisos RBAC
 
@@ -169,6 +172,65 @@ Una vez desplegada, la Function App expondrá estos endpoints adicionales:
 
 La infraestructura ya está desplegada desde el setup inicial. Solo necesitas **publicar el código actualizado** de la Function App.
 
+> [!IMPORTANT]
+> El setup de infraestructura actualizado (`op-flex/deploy.ps1` y `op-consumption/deploy.ps1`) acepta estos parámetros para configurar SQL del Lab 05:
+> - `FabricWarehouseSqlEndpoint`
+> - `FabricWarehouseDatabase`
+>
+> Si no se proporcionan, el despliegue continúa y solo omite la configuración automática del app setting `FabricWarehouseConnectionString`.
+
+### ¿Cómo obtener `FabricWarehouseSqlEndpoint` y `FabricWarehouseDatabase`?
+
+En Fabric, abre tu **Warehouse** y copia el **connection string** (SQL). Verás algo similar a:
+
+```text
+Data Source=kqbvkknqlijebcyrtw2rgtsx2e-dvthxhg2tsuurev2kck26gww4q.database.fabric.microsoft.com,1433;Initial Catalog=retail_sqldatabase_xxx;... 
+```
+
+Mapeo de valores:
+
+- `FabricWarehouseSqlEndpoint` = valor de `Data Source` **sin** `,1433`
+    - Ejemplo: `kqbvkknqlijebcyrtw2rgtsx2e-dvthxhg2tsuurev2kck26gww4q.database.fabric.microsoft.com`
+- `FabricWarehouseDatabase` = valor de `Initial Catalog`
+    - Ejemplo: `retail_sqldatabase_xxx`
+
+> [!TIP]
+> Estos valores se obtienen del entorno de **Fabric desplegado en el Lab 01** (`lab01-data-setup.md`).
+>
+> Si no estás siguiendo la secuencia completa de laboratorios, en este lab solo necesitamos una base SQL para ejecutar consultas. Puedes usar una base SQL standalone (por ejemplo Azure SQL Database) y ajustar la conexión:
+> - `FabricWarehouseSqlEndpoint` por el host SQL de tu base standalone
+> - `FabricWarehouseDatabase` por el nombre de tu base
+>
+> En ese escenario, asegúrate también de configurar permisos de la identidad de la Function App sobre esa base.
+
+### Opción 0: Re-ejecutar setup de infraestructura (si necesitas refrescar settings)
+
+Si quieres redeploy completo (infra + publish) usando el setup:
+
+```powershell
+# Flex Consumption
+cd labs\foundry\setup\op-flex
+.\deploy.ps1 `
+    -TenantName "<tu-tenant>" `
+    -ResourceGroupName "rg-contoso-retail" `
+    -Location "eastus" `
+    -FabricWarehouseSqlEndpoint "<endpoint-sql-fabric>" `
+    -FabricWarehouseDatabase "<database-warehouse>"
+```
+
+```powershell
+# Consumption (Y1)
+cd labs\foundry\setup\op-consumption
+.\deploy.ps1 `
+    -TenantName "<tu-tenant>" `
+    -ResourceGroupName "rg-contoso-retail" `
+    -Location "eastus" `
+    -FabricWarehouseSqlEndpoint "<endpoint-sql-fabric>" `
+    -FabricWarehouseDatabase "<database-warehouse>"
+```
+
+> Si solo cambiaste código de la Function App y no necesitas tocar infraestructura, usa la Opción A u Opción B de abajo.
+
 ### Opción A: Usando Azure Functions Core Tools (recomendada)
 
 Si tienes instalado [Azure Functions Core Tools](https://learn.microsoft.com/azure/azure-functions/functions-run-local#install-the-azure-functions-core-tools), el redespliegue es un solo comando:
@@ -217,7 +279,7 @@ Abre en el navegador o con `curl`:
 https://func-contosoretail-<suffix>.azurewebsites.net/api/openapi/v3.json
 ```
 
-Deberías ver un JSON con la estructura OpenAPI que describe los endpoints `HolaMundo` y `OrdersReporter`, incluyendo los esquemas de request/response.
+Deberías ver un JSON con la estructura OpenAPI que describe los endpoints `HolaMundo`, `OrdersReporter` y `SqlExecutor`, incluyendo los esquemas de request/response.
 
 ### Explorar el Swagger UI
 
@@ -490,8 +552,10 @@ Se incluye un script de conveniencia en el repositorio:
 
 ```powershell
 cd labs/foundry/setup
-.\unlock-storage.ps1 -Suffix "<tu-sufijo-de-5-caracteres>"
+.\unlock-storage.ps1
 ```
+
+El script detecta automáticamente el sufijo desde la Function App. Si necesitas forzarlo, también acepta `-Suffix` o `-FunctionAppName`.
 
 Este script habilita el acceso público de red en el Storage Account y reinicia la Function App. Ver [unlock-storage.ps1](setup/unlock-storage.ps1) para detalles.
 

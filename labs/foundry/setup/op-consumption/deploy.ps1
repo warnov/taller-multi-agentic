@@ -4,7 +4,8 @@
 # ============================================================================
 # Uso:
 #   .\deploy.ps1 -TenantName "mi-tenant-temporal"
-#   .\deploy.ps1 -TenantName "mi-tenant-temporal" -Location "eastus"
+#   .\deploy.ps1 -TenantName "mi-tenant-temporal" -FabricWarehouseSqlEndpoint "<endpoint-sql-fabric>" -FabricWarehouseDatabase "<database>"
+#   .\deploy.ps1 -TenantName "mi-tenant-temporal" -Location "eastus" -FabricWarehouseSqlEndpoint "<endpoint-sql-fabric>" -FabricWarehouseDatabase "<database>"
 # ============================================================================
 
 param(
@@ -15,7 +16,13 @@ param(
     [string]$Location = "eastus",
 
     [Parameter(Mandatory = $false, HelpMessage = "Nombre del Resource Group (default: rg-contoso-retail).")]
-    [string]$ResourceGroupName = "rg-contoso-retail"
+    [string]$ResourceGroupName = "rg-contoso-retail",
+
+    [Parameter(Mandatory = $false, HelpMessage = "Endpoint SQL del Warehouse de Fabric (sin protocolo). Ej: xyz.datawarehouse.fabric.microsoft.com")]
+    [string]$FabricWarehouseSqlEndpoint = "",
+
+    [Parameter(Mandatory = $false, HelpMessage = "Nombre de la base de datos del Warehouse de Fabric.")]
+    [string]$FabricWarehouseDatabase = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -29,7 +36,24 @@ Write-Host ""
 Write-Host "  Tenant:         $TenantName" -ForegroundColor Yellow
 Write-Host "  Location:       $Location" -ForegroundColor Yellow
 Write-Host "  Resource Group: $ResourceGroupName" -ForegroundColor Yellow
+Write-Host "  Fabric SQL:     $(if ([string]::IsNullOrWhiteSpace($FabricWarehouseSqlEndpoint)) { '<omitido>' } else { $FabricWarehouseSqlEndpoint })" -ForegroundColor Yellow
+Write-Host "  Fabric DB:      $(if ([string]::IsNullOrWhiteSpace($FabricWarehouseDatabase)) { '<omitido>' } else { $FabricWarehouseDatabase })" -ForegroundColor Yellow
 Write-Host ""
+
+$hasFabricSql = -not [string]::IsNullOrWhiteSpace($FabricWarehouseSqlEndpoint)
+$hasFabricDb = -not [string]::IsNullOrWhiteSpace($FabricWarehouseDatabase)
+$hasCompleteFabricConfig = $hasFabricSql -and $hasFabricDb
+
+if ($hasFabricSql -xor $hasFabricDb) {
+    Write-Warning "Se recibió solo uno de los parámetros de Fabric. Se omitirán ambos para no configurar una conexión incompleta."
+    $FabricWarehouseSqlEndpoint = ""
+    $FabricWarehouseDatabase = ""
+    $hasCompleteFabricConfig = $false
+}
+
+if (-not $hasCompleteFabricConfig) {
+    Write-Warning "No se configurará conexión SQL para Lab05 en este despliegue. Deberás ajustarla manualmente luego."
+}
 
 # --- 1. Verificar Azure CLI ---
 Write-Host "[1/5] Verificando Azure CLI..." -ForegroundColor Green
@@ -91,7 +115,7 @@ $deploymentName = "main"
 az deployment group create `
     --resource-group $ResourceGroupName `
     --template-file $templateFile `
-    --parameters tenantName=$TenantName location=$Location `
+    --parameters tenantName=$TenantName location=$Location fabricWarehouseSqlEndpoint=$FabricWarehouseSqlEndpoint fabricWarehouseDatabase=$FabricWarehouseDatabase `
     --name $deploymentName `
     --no-wait `
     --output none
@@ -199,8 +223,12 @@ $projectDir = Join-Path $scriptDir ".." ".." "code" "api" "FxContosoRetail"
 $publishDir = Join-Path $projectDir "bin" "publish"
 
 Write-Host "  Compilando proyecto..." -ForegroundColor Gray
-dotnet publish $projectDir --configuration Release --output $publishDir 2>&1 | Out-Null
+$publishOutput = dotnet publish $projectDir --configuration Release --output $publishDir 2>&1
 if ($LASTEXITCODE -ne 0) {
+    Write-Host ""
+    Write-Host "===== Detalle de error de compilación =====" -ForegroundColor Red
+    $publishOutput | ForEach-Object { Write-Host $_ }
+    Write-Host "==========================================" -ForegroundColor Red
     Write-Error "Error al compilar el proyecto. Verifica el código."
     exit 1
 }
@@ -278,4 +306,7 @@ Write-Host "  Function App:        $functionAppName" -ForegroundColor White
 Write-Host "  Function App Base URL:      $functionAppUrl/api" -ForegroundColor White
 Write-Host "  API OrdersReporter:          $apiUrl" -ForegroundColor White
 Write-Host "  Foundry Project Endpoint:    $($outputs.foundryProjectEndpoint.value)" -ForegroundColor White
+if (-not $hasCompleteFabricConfig) {
+    Write-Host "  Aviso Lab05:                 No se configuró la conexión SQL (FabricWarehouseConnectionString). Configúrala manualmente en la Function App." -ForegroundColor Yellow
+}
 Write-Host ""

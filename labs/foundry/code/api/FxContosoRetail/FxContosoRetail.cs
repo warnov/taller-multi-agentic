@@ -1,6 +1,8 @@
 using System.Globalization;
+using System.Data;
 using System.Text;
 using System.Text.Json;
+using System.Net;
 using Azure.Identity;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
@@ -10,18 +12,26 @@ using Contoso.Retail.Functions.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Microsoft.Azure.Functions.Worker.Extensions.OpenApi.Extensions;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Enums;
+using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
-using System.Net;
 
 namespace Contoso.Retail.Functions;
 
 public class FxContosoRetail
 {
+    private static readonly HashSet<string> ExpectedSqlExecutorColumns = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "FirstName",
+        "LastName",
+        "PrimaryEmail",
+        "FavoriteCategory"
+    };
+
     private readonly ILogger<FxContosoRetail> _logger;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
@@ -43,6 +53,124 @@ public class FxContosoRetail
     {
         _logger.LogInformation("Función HolaMundo ejecutada.");
         return new OkObjectResult("¡Hola Mundo!");
+    }
+
+
+[OpenApiOperation(operationId: "sqlExecutor", tags: new[] { "Data" },
+    Summary = "Ejecuta una consulta T-SQL para segmentos de clientes",
+    Description = "Recibe T-SQL en el body, ejecuta la consulta contra Fabric Warehouse y retorna una lista con FirstName, LastName, PrimaryEmail y FavoriteCategory.")]
+[OpenApiRequestBody(
+    contentType: "application/json",
+    bodyType: typeof(SqlExecutorRequest),
+    Required = true,
+    Description = "Objeto JSON con la propiedad 'tsql' que contiene la consulta a ejecutar")]
+[OpenApiResponseWithBody(
+    statusCode: HttpStatusCode.OK,
+    contentType: "application/json",
+    bodyType: typeof(List<SqlExecutorCustomerRecord>),
+    Description = "Resultados tipados del segmento de clientes")]
+[OpenApiResponseWithBody(
+    statusCode: HttpStatusCode.BadRequest,
+    contentType: "text/plain",
+    bodyType: typeof(string),
+    Description = "Mensaje de error por body inválido o columnas distintas al contrato esperado")]
+[OpenApiResponseWithBody(
+    statusCode: HttpStatusCode.InternalServerError,
+    contentType: "text/plain",
+    bodyType: typeof(string),
+    Description = "Error al ejecutar la consulta SQL")]
+    [Function("SqlExecutor")]
+    public async Task<IActionResult> SqlExecutor(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequest req)
+    {
+        _logger.LogInformation("SqlExecutor: procesando solicitud.");
+
+        SqlExecutorRequest? request;
+        try
+        {
+            var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            request = await JsonSerializer.DeserializeAsync<SqlExecutorRequest>(req.Body, jsonOptions);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "SqlExecutor: body inválido.");
+            return new BadRequestObjectResult("El cuerpo de la solicitud no es un JSON válido.");
+        }
+
+        if (request is null || string.IsNullOrWhiteSpace(request.TSql))
+            return new BadRequestObjectResult("Debe enviar la propiedad 'tsql' con una consulta válida.");
+
+        if (!IsReadOnlySql(request.TSql))
+            return new BadRequestObjectResult("Solo se permiten consultas de solo lectura (SELECT/CTE).");
+
+        var rawConnectionString = _configuration["FabricWarehouseConnectionString"];
+        if (string.IsNullOrWhiteSpace(rawConnectionString))
+        {
+            return new BadRequestObjectResult("No existe configuración 'FabricWarehouseConnectionString'.");
+        }
+
+        var connectionString = EnsureAdDefaultAuthentication(rawConnectionString);
+
+        try
+        {
+            await using var connection = new SqlConnection(connectionString);
+            await connection.OpenAsync();
+
+            await using var command = new SqlCommand(request.TSql, connection)
+            {
+                CommandType = CommandType.Text,
+                CommandTimeout = 60
+            };
+
+            await using var reader = await command.ExecuteReaderAsync();
+
+            var returnedColumns = Enumerable
+                .Range(0, reader.FieldCount)
+                .Select(reader.GetName)
+                .ToArray();
+
+            if (!HasExpectedSqlExecutorColumns(returnedColumns))
+            {
+                return new BadRequestObjectResult(
+                    "La consulta debe retornar EXACTAMENTE estas columnas: FirstName, LastName, PrimaryEmail, FavoriteCategory.");
+            }
+
+            int firstNameOrdinal = reader.GetOrdinal("FirstName");
+            int lastNameOrdinal = reader.GetOrdinal("LastName");
+            int primaryEmailOrdinal = reader.GetOrdinal("PrimaryEmail");
+            int favoriteCategoryOrdinal = reader.GetOrdinal("FavoriteCategory");
+
+            var results = new List<SqlExecutorCustomerRecord>();
+
+            while (await reader.ReadAsync())
+            {
+                results.Add(new SqlExecutorCustomerRecord
+                {
+                    FirstName = reader.IsDBNull(firstNameOrdinal) ? string.Empty : reader.GetValue(firstNameOrdinal)?.ToString() ?? string.Empty,
+                    LastName = reader.IsDBNull(lastNameOrdinal) ? string.Empty : reader.GetValue(lastNameOrdinal)?.ToString() ?? string.Empty,
+                    PrimaryEmail = reader.IsDBNull(primaryEmailOrdinal) ? string.Empty : reader.GetValue(primaryEmailOrdinal)?.ToString() ?? string.Empty,
+                    FavoriteCategory = reader.IsDBNull(favoriteCategoryOrdinal) ? string.Empty : reader.GetValue(favoriteCategoryOrdinal)?.ToString() ?? string.Empty
+                });
+            }
+
+            return new OkObjectResult(results);
+        }
+        catch (SqlException ex)
+        {
+            _logger.LogError(ex, "SqlExecutor: error SQL al ejecutar consulta.");
+            return new ObjectResult("Error al ejecutar la consulta SQL.")
+            {
+                StatusCode = StatusCodes.Status500InternalServerError
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "SqlExecutor: error inesperado.");
+            return new ObjectResult("Error interno al ejecutar SqlExecutor.")
+            {
+                StatusCode = StatusCodes.Status500InternalServerError
+            };
+        }
     }
 
 
@@ -250,5 +378,31 @@ public class FxContosoRetail
     {
         var culture = new CultureInfo("es-CO");
         return $"$ {value.ToString("N2", culture)}";
+    }
+
+    private static bool HasExpectedSqlExecutorColumns(IReadOnlyCollection<string> returnedColumns)
+    {
+        if (returnedColumns.Count != ExpectedSqlExecutorColumns.Count)
+            return false;
+
+        return returnedColumns.All(column => ExpectedSqlExecutorColumns.Contains(column));
+    }
+
+    private static bool IsReadOnlySql(string tsql)
+    {
+        var trimmed = tsql.TrimStart();
+        return trimmed.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase)
+               || trimmed.StartsWith("WITH", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string EnsureAdDefaultAuthentication(string connectionString)
+    {
+        var builder = new SqlConnectionStringBuilder(connectionString);
+        if (builder.Authentication == SqlAuthenticationMethod.NotSpecified)
+        {
+            builder.Authentication = SqlAuthenticationMethod.ActiveDirectoryDefault;
+        }
+
+        return builder.ConnectionString;
     }
 }

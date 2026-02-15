@@ -62,6 +62,36 @@ El proyecto ofrece **dos opciones de despliegue** ubicadas en carpetas hermanas 
 - **PowerShell** 5.1 o superior (Windows) o PowerShell Core 7+ (macOS/Linux)
 - Una **suscripción de Azure** activa con permisos de Owner o Contributor
 - El **nombre del tenant temporal** asignado
+- (Opcional) Los valores del Warehouse de Fabric:
+   - `FabricWarehouseSqlEndpoint`
+   - `FabricWarehouseDatabase`
+
+### ¿Cómo obtener los parámetros de Fabric?
+
+Estos valores se obtienen del entorno de **Fabric desplegado en el Lab 01** (`../fabric/lab01-data-setup.md`).
+
+En tu Workspace de Fabric, abre el **Warehouse** y copia el **connection string** SQL. Verás algo como:
+
+```text
+Data Source=xxxxx.database.fabric.microsoft.com,1433;Initial Catalog=retail_sqldatabase_xxx;...
+```
+
+Mapeo:
+
+- `FabricWarehouseSqlEndpoint` = `Data Source` sin `,1433`
+- `FabricWarehouseDatabase` = `Initial Catalog`
+
+Ejemplo:
+
+- `FabricWarehouseSqlEndpoint`: `kqbvkknqlijebcyrtw2rgtsx2e-dvthxhg2tsuurev2kck26gww4q.database.fabric.microsoft.com`
+- `FabricWarehouseDatabase`: `retail_sqldatabase_danrdol6ases3c-6d18d61e-43a5-4281-a754-b255fc9a6c9b`
+
+Si no estás siguiendo toda la secuencia de laboratorios, aquí solo se usa una base SQL para consultas del Lab 05. Puedes apuntar directamente a una base SQL standalone (por ejemplo Azure SQL Database) usando:
+
+- `FabricWarehouseSqlEndpoint` = host SQL de tu base standalone
+- `FabricWarehouseDatabase` = nombre de tu base
+
+Si no proporcionas estos valores, el despliegue no falla: omite la configuración de DB para Lab 05 y te mostrará un aviso para configurarla manualmente después.
 
 ### Iniciar sesión en Azure
 
@@ -122,11 +152,20 @@ Modelo moderno basado en Linux con autenticación por Managed Identity. El Stora
    cd labs\foundry\setup\op-flex
    ```
 
-3. **Ejecutar el script de despliegue** con tu nombre de tenant:
+3. **Ejecutar el script de despliegue** con tu nombre de tenant (y opcionalmente los parámetros de Fabric):
 
    ```powershell
-   .\deploy.ps1 -TenantName "tu-tenant-temporal"
+   .\deploy.ps1 `
+     -TenantName "tu-tenant-temporal" `
+     -FabricWarehouseSqlEndpoint "<endpoint-sql-fabric>" `
+     -FabricWarehouseDatabase "<database-warehouse>"
    ```
+
+    También puedes ejecutar solo:
+
+    ```powershell
+    .\deploy.ps1 -TenantName "tu-tenant-temporal"
+    ```
 
 4. **Revisar la salida.** Al finalizar, el script muestra los nombres y URLs de todos los recursos creados. Toma nota de estos valores, los necesitarás en los laboratorios.
 
@@ -144,11 +183,20 @@ Modelo clásico basado en Windows con autenticación por connection string. Requ
    cd labs\foundry\setup\op-consumption
    ```
 
-3. **Ejecutar el script de despliegue** con tu nombre de tenant:
+3. **Ejecutar el script de despliegue** con tu nombre de tenant (y opcionalmente los parámetros de Fabric):
 
    ```powershell
-   .\deploy.ps1 -TenantName "tu-tenant-temporal"
+   .\deploy.ps1 `
+     -TenantName "tu-tenant-temporal" `
+     -FabricWarehouseSqlEndpoint "<endpoint-sql-fabric>" `
+     -FabricWarehouseDatabase "<database-warehouse>"
    ```
+
+    También puedes ejecutar solo:
+
+    ```powershell
+    .\deploy.ps1 -TenantName "tu-tenant-temporal"
+    ```
 
 4. **Revisar la salida.** Al finalizar, el script muestra los nombres y URLs de todos los recursos creados.
 
@@ -160,10 +208,10 @@ Puedes personalizar la región o el nombre del Resource Group:
 
 ```powershell
 # Usar otra región
-.\deploy.ps1 -TenantName "tu-tenant" -Location "eastus"
+.\deploy.ps1 -TenantName "tu-tenant" -Location "eastus" -FabricWarehouseSqlEndpoint "<endpoint-sql-fabric>" -FabricWarehouseDatabase "<database-warehouse>"
 
 # Cambiar el nombre del Resource Group
-.\deploy.ps1 -TenantName "tu-tenant" -ResourceGroupName "mi-rg-personalizado"
+.\deploy.ps1 -TenantName "tu-tenant" -ResourceGroupName "mi-rg-personalizado" -FabricWarehouseSqlEndpoint "<endpoint-sql-fabric>" -FabricWarehouseDatabase "<database-warehouse>"
 ```
 
 ### Verificación
@@ -221,7 +269,7 @@ labs/foundry/
 └── code/
     ├── api/
     │   └── FxContosoRetail/               ← Azure Function (API)
-    │       ├── FxContosoRetail.cs          ← Endpoints: HolaMundo, OrdersReporter
+   │       ├── FxContosoRetail.cs          ← Endpoints: HolaMundo, OrdersReporter, SqlExecutor
     │       ├── Program.cs
     │       ├── Models/
     │       └── ...

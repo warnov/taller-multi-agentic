@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.40.2.10011",
-      "templateHash": "4865280076380036185"
+      "templateHash": "15355606873966014994"
     }
   },
   "parameters": {
@@ -65,6 +65,10 @@
     "functionAppName": "[format('func-contosoretail-{0}', variables('suffix'))]",
     "aiFoundryName": "[format('ais-contosoretail-{0}', variables('suffix'))]",
     "aiProjectName": "[format('aip-contosoretail-{0}', variables('suffix'))]",
+    "deploymentContainerName": "[format('app-package-{0}', toLower(variables('functionAppName')))]",
+    "fabricWarehouseConnectionString": "[format('Server=tcp:{0},1433;Database={1};Encrypt=True;TrustServerCertificate=False;Authentication=Active Directory Default;Connection Timeout=30;', parameters('fabricWarehouseSqlEndpoint'), parameters('fabricWarehouseDatabase'))]",
+    "hasFabricWarehouseConfig": "[and(not(empty(parameters('fabricWarehouseSqlEndpoint'))), not(empty(parameters('fabricWarehouseDatabase'))))]",
+    "optionalFabricSettings": "[if(variables('hasFabricWarehouseConfig'), createArray(createObject('name', 'FabricWarehouseConnectionString', 'value', variables('fabricWarehouseConnectionString'))), createArray())]",
     "tags": {
       "project": "taller-multi-agentic",
       "environment": "workshop"
@@ -85,24 +89,8 @@
         "supportsHttpsTrafficOnly": true,
         "minimumTlsVersion": "TLS1_2",
         "allowBlobPublicAccess": false,
-        "allowSharedKeyAccess": true
+        "allowSharedKeyAccess": false
       }
-    },
-    {
-      "type": "Microsoft.Storage/storageAccounts/fileServices",
-      "apiVersion": "2023-05-01",
-      "name": "[format('{0}/{1}', variables('storageAccountName'), 'default')]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
-      ]
-    },
-    {
-      "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
-      "apiVersion": "2023-05-01",
-      "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', toLower(variables('functionAppName')))]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('storageAccountName'), 'default')]"
-      ]
     },
     {
       "type": "Microsoft.Storage/storageAccounts/blobServices",
@@ -121,18 +109,41 @@
       ]
     },
     {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', variables('deploymentContainerName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/tableServices",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}', variables('storageAccountName'), 'default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/queueServices",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}', variables('storageAccountName'), 'default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ]
+    },
+    {
       "type": "Microsoft.Web/serverfarms",
       "apiVersion": "2023-12-01",
       "name": "[variables('appServicePlanName')]",
       "location": "[parameters('location')]",
       "tags": "[variables('tags')]",
-      "kind": "functionapp",
       "sku": {
-        "name": "Y1",
-        "tier": "Dynamic"
+        "name": "FC1",
+        "tier": "FlexConsumption"
       },
       "properties": {
-        "reserved": false
+        "reserved": true
       }
     },
     {
@@ -141,64 +152,38 @@
       "name": "[variables('functionAppName')]",
       "location": "[parameters('location')]",
       "tags": "[variables('tags')]",
-      "kind": "functionapp",
+      "kind": "functionapp,linux",
       "identity": {
         "type": "SystemAssigned"
       },
       "properties": {
         "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
         "httpsOnly": true,
-        "siteConfig": {
-          "netFrameworkVersion": "v8.0",
-          "use32BitWorkerProcess": false,
-          "ftpsState": "Disabled",
-          "appSettings": [
-            {
-              "name": "AzureWebJobsStorage",
-              "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix=core.windows.net', variables('storageAccountName'), listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2023-05-01').keys[0].value)]"
-            },
-            {
-              "name": "AzureWebJobsStorage__accountName",
-              "value": "[variables('storageAccountName')]"
-            },
-            {
-              "name": "StorageAccountName",
-              "value": "[variables('storageAccountName')]"
-            },
-            {
-              "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
-              "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix=core.windows.net', variables('storageAccountName'), listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2023-05-01').keys[0].value)]"
-            },
-            {
-              "name": "WEBSITE_CONTENTSHARE",
-              "value": "[toLower(variables('functionAppName'))]"
-            },
-            {
-              "name": "WEBSITE_SKIP_CONTENTSHARE_VALIDATION",
-              "value": "1"
-            },
-            {
-              "name": "FUNCTIONS_EXTENSION_VERSION",
-              "value": "~4"
-            },
-            {
-              "name": "FUNCTIONS_WORKER_RUNTIME",
-              "value": "dotnet-isolated"
-            },
-            {
-              "name": "BillTemplate",
-              "value": "https://raw.githubusercontent.com/warnov/taller-multi-agentic/refs/heads/main/assets/bill-template.html"
-            },
-            {
-              "name": "FabricWarehouseConnectionString",
-              "value": "[format('Server=tcp:{0},1433;Database={1};Encrypt=True;TrustServerCertificate=False;Authentication=Active Directory Default;Connection Timeout=30;', parameters('fabricWarehouseSqlEndpoint'), parameters('fabricWarehouseDatabase'))]"
+        "functionAppConfig": {
+          "deployment": {
+            "storage": {
+              "type": "blobContainer",
+              "value": "[format('{0}{1}', reference(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2023-05-01').primaryEndpoints.blob, variables('deploymentContainerName'))]",
+              "authentication": {
+                "type": "SystemAssignedIdentity"
+              }
             }
-          ]
+          },
+          "scaleAndConcurrency": {
+            "maximumInstanceCount": 100,
+            "instanceMemoryMB": 2048
+          },
+          "runtime": {
+            "name": "dotnet-isolated",
+            "version": "8.0"
+          }
+        },
+        "siteConfig": {
+          "appSettings": "[concat(createArray(createObject('name', 'AzureWebJobsStorage__credential', 'value', 'managedidentity'), createObject('name', 'AzureWebJobsStorage__blobServiceUri', 'value', format('https://{0}.blob.{1}', variables('storageAccountName'), environment().suffixes.storage)), createObject('name', 'AzureWebJobsStorage__queueServiceUri', 'value', format('https://{0}.queue.{1}', variables('storageAccountName'), environment().suffixes.storage)), createObject('name', 'AzureWebJobsStorage__tableServiceUri', 'value', format('https://{0}.table.{1}', variables('storageAccountName'), environment().suffixes.storage)), createObject('name', 'StorageAccountName', 'value', variables('storageAccountName')), createObject('name', 'FUNCTIONS_EXTENSION_VERSION', 'value', '~4'), createObject('name', 'BillTemplate', 'value', 'https://raw.githubusercontent.com/warnov/taller-multi-agentic/refs/heads/main/assets/bill-template.html')), variables('optionalFabricSettings'))]"
         }
       },
       "dependsOn": [
         "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
-        "[resourceId('Microsoft.Storage/storageAccounts/fileServices/shares', variables('storageAccountName'), 'default', toLower(variables('functionAppName')))]",
         "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
       ]
     },
@@ -367,6 +352,10 @@
     "aiProjectName": {
       "type": "string",
       "value": "[variables('aiProjectName')]"
+    },
+    "foundryProjectEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts/projects', variables('aiFoundryName'), variables('aiProjectName')), '2025-06-01').endpoints['AI Foundry API']]"
     }
   }
 }

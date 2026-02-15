@@ -1,4 +1,4 @@
-gh # ============================================================================
+# ============================================================================
 # Contoso Retail - Desbloquear Storage Account
 # Taller Multi-Agéntico
 # ============================================================================
@@ -11,22 +11,25 @@ gh # ===========================================================================
 # público de red.
 #
 # Uso:
+#   .\unlock-storage.ps1
+#   .\unlock-storage.ps1 -ResourceGroupName "rg-contoso-retail"
 #   .\unlock-storage.ps1 -Suffix "sytao"
-#   .\unlock-storage.ps1 -Suffix "sytao" -ResourceGroupName "rg-contoso-retail"
+#   .\unlock-storage.ps1 -FunctionAppName "func-contosoretail-sytao"
 # ============================================================================
 
 param(
-    [Parameter(Mandatory = $true, HelpMessage = "Sufijo de 5 caracteres asignado al attendee durante el setup inicial.")]
+    [Parameter(Mandatory = $false, HelpMessage = "Sufijo de 5 caracteres asignado al attendee durante el setup inicial. Si no se provee, se detecta automaticamente desde la Function App.")]
     [ValidatePattern('^[a-z0-9]{5}$')]
     [string]$Suffix,
 
     [Parameter(Mandatory = $false, HelpMessage = "Nombre del Resource Group (default: rg-contoso-retail).")]
-    [string]$ResourceGroupName = "rg-contoso-retail"
+    [string]$ResourceGroupName = "rg-contoso-retail",
+
+    [Parameter(Mandatory = $false, HelpMessage = "Nombre exacto de la Function App. Si se provee, se usa para derivar el sufijo.")]
+    [string]$FunctionAppName
 )
 
 $ErrorActionPreference = "Stop"
-
-$storageAccountName = "stcontosoretail$Suffix"
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
@@ -34,8 +37,8 @@ Write-Host " Taller Multi-Agéntico" -ForegroundColor Cyan
 Write-Host " Desbloquear Storage Account" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  Sufijo:          $Suffix" -ForegroundColor Yellow
-Write-Host "  Storage Account: $storageAccountName" -ForegroundColor Yellow
+Write-Host "  Sufijo:          $(if ([string]::IsNullOrWhiteSpace($Suffix)) { '<auto>' } else { $Suffix })" -ForegroundColor Yellow
+Write-Host "  Storage Account: $(if ([string]::IsNullOrWhiteSpace($Suffix)) { '<auto>' } else { "stcontosoretail$Suffix" })" -ForegroundColor Yellow
 Write-Host "  Resource Group:  $ResourceGroupName" -ForegroundColor Yellow
 Write-Host ""
 
@@ -58,6 +61,52 @@ if (-not $account) {
     $account = az account show --output json | ConvertFrom-Json
 }
 Write-Host "  Suscripcion: $($account.name) ($($account.id))" -ForegroundColor Gray
+
+if ([string]::IsNullOrWhiteSpace($Suffix)) {
+    Write-Host "  Detectando sufijo automaticamente..." -ForegroundColor Yellow
+
+    if (-not [string]::IsNullOrWhiteSpace($FunctionAppName)) {
+        if ($FunctionAppName -notmatch '^func-contosoretail-([a-z0-9]{5})$') {
+            Write-Error "FunctionAppName '$FunctionAppName' no cumple el formato esperado 'func-contosoretail-<suffix>'."
+            exit 1
+        }
+
+        $Suffix = $Matches[1]
+    }
+    else {
+        $functionAppsTsv = az functionapp list `
+            --resource-group $ResourceGroupName `
+            --query "[?starts_with(name, 'func-contosoretail-')].name" `
+            --output tsv 2>$null
+
+        if (-not $functionAppsTsv) {
+            Write-Error "No se encontraron Function Apps con prefijo 'func-contosoretail-' en el Resource Group '$ResourceGroupName'. Usa -Suffix o -FunctionAppName."
+            exit 1
+        }
+
+        $functionApps = @($functionAppsTsv -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+
+        if ($functionApps.Count -gt 1) {
+            Write-Host "  Se encontraron multiples Function Apps candidatas:" -ForegroundColor Yellow
+            $functionApps | ForEach-Object { Write-Host "   - $_" -ForegroundColor Yellow }
+            Write-Error "Especifica -Suffix o -FunctionAppName para evitar ambiguedad."
+            exit 1
+        }
+
+        $FunctionAppName = $functionApps[0]
+
+        if ($FunctionAppName -notmatch '^func-contosoretail-([a-z0-9]{5})$') {
+            Write-Error "No se pudo derivar el sufijo desde la Function App '$FunctionAppName'."
+            exit 1
+        }
+
+        $Suffix = $Matches[1]
+    }
+}
+
+$storageAccountName = "stcontosoretail$Suffix"
+Write-Host "  Sufijo resuelto: $Suffix" -ForegroundColor Gray
+Write-Host "  Storage resuelto: $storageAccountName" -ForegroundColor Gray
 
 # --- 3. Verificar y desbloquear Storage Account ---
 Write-Host "[3/4] Verificando Storage Account '$storageAccountName'..." -ForegroundColor Green
@@ -93,7 +142,7 @@ az storage account update `
 Write-Host "  Acceso publico habilitado." -ForegroundColor Green
 
 # --- 4. Reiniciar Function App para que reconecte al storage ---
-$functionAppName = "func-contosoretail-$Suffix"
+$functionAppName = if (-not [string]::IsNullOrWhiteSpace($FunctionAppName)) { $FunctionAppName } else { "func-contosoretail-$Suffix" }
 Write-Host "[4/4] Reiniciando Function App '$functionAppName'..." -ForegroundColor Green
 
 az functionapp restart `

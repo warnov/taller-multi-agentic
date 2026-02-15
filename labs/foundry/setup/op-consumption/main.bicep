@@ -27,6 +27,12 @@ param gptModelVersion string = '2025-04-14'
 @description('Capacidad del deployment (tokens por minuto en miles).')
 param gptDeploymentCapacity int = 30
 
+@description('Endpoint SQL del Warehouse de Fabric (sin protocolo), por ejemplo: xyz.datawarehouse.fabric.microsoft.com')
+param fabricWarehouseSqlEndpoint string = ''
+
+@description('Nombre de la base de datos del Warehouse de Fabric.')
+param fabricWarehouseDatabase string = ''
+
 // ============================================================================
 // Variables - Sufijo y nombres
 // ============================================================================
@@ -111,6 +117,13 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
 // ============================================================================
 
 var storageConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${storageAccount.listKeys().keys[0].value};EndpointSuffix=core.windows.net'
+var fabricWarehouseConnectionString = 'Server=tcp:${fabricWarehouseSqlEndpoint},1433;Database=${fabricWarehouseDatabase};Encrypt=True;TrustServerCertificate=False;Authentication=Active Directory Default;Connection Timeout=30;'
+var hasFabricWarehouseConfig = !empty(fabricWarehouseSqlEndpoint) && !empty(fabricWarehouseDatabase)
+var optionalFabricSettings = hasFabricWarehouseConfig
+  ? [
+      { name: 'FabricWarehouseConnectionString', value: fabricWarehouseConnectionString }
+    ]
+  : []
 
 resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
   name: functionAppName
@@ -128,7 +141,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
       netFrameworkVersion: 'v8.0'
       use32BitWorkerProcess: false
       ftpsState: 'Disabled'
-      appSettings: [
+      appSettings: concat([
         { name: 'AzureWebJobsStorage', value: storageConnectionString }
         { name: 'AzureWebJobsStorage__accountName', value: storageAccount.name }
         { name: 'StorageAccountName', value: storageAccount.name }
@@ -138,7 +151,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         { name: 'FUNCTIONS_EXTENSION_VERSION', value: '~4' }
         { name: 'FUNCTIONS_WORKER_RUNTIME', value: 'dotnet-isolated' }
         { name: 'BillTemplate', value: 'https://raw.githubusercontent.com/warnov/taller-multi-agentic/refs/heads/main/assets/bill-template.html' }
-      ]
+      ], optionalFabricSettings)
     }
   }
 }
