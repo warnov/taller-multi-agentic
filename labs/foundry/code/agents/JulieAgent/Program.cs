@@ -1,0 +1,183 @@
+using Azure.AI.Projects;
+using Azure.AI.Projects.OpenAI;
+using Azure.Identity;
+using Microsoft.Extensions.Configuration;
+using System.ClientModel;
+using System.ClientModel.Primitives;
+using System.Text.Json;
+using OpenAI.Responses;
+using JulieAgent;
+
+#pragma warning disable OPENAI001 // OpenAI preview API
+
+// =====================================================================
+//  Julie - Agente Orquestador de Campañas de Marketing
+//  (Microsoft Foundry - nueva experiencia)
+//
+//  Program.cs SOLO se encarga de:
+//  1. Crear/verificar los 3 agentes en Microsoft Foundry
+//     (SqlAgent, MarketingAgent, Julie)
+//  2. Abrir un chat interactivo con Julie
+//
+//  Toda la orquestación la hace Julie internamente:
+//    SqlAgent (tool) → genera T-SQL
+//    ContosoRetailDB (OpenAPI tool) → ejecuta SQL contra la BD
+//    MarketingAgent (tool) → genera mensajes personalizados
+//    Julie → organiza el resultado como JSON de campaña
+// =====================================================================
+
+// --- Cargar configuración ---
+var config = new ConfigurationBuilder()
+    .AddJsonFile("appsettings.json")
+    .Build();
+
+var foundryEndpoint = config["FoundryProjectEndpoint"]
+    ?? throw new InvalidOperationException("Falta FoundryProjectEndpoint en appsettings.json");
+var modelDeployment = config["ModelDeploymentName"]
+    ?? throw new InvalidOperationException("Falta ModelDeploymentName en appsettings.json");
+var bingConnectionId = config["BingConnectionId"]
+    ?? throw new InvalidOperationException("Falta BingConnectionId en appsettings.json");
+
+// URL base de la Function App con el ejecutor de consultas SQL.
+// Se configura en appsettings.json cuando la función esté desplegada.
+var functionAppBaseUrl = config["FunctionAppBaseUrl"];
+
+// --- Cargar estructura de la base de datos ---
+var dbStructurePath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "db-structure.txt");
+if (!File.Exists(dbStructurePath))
+    dbStructurePath = Path.Combine(Directory.GetCurrentDirectory(), "db-structure.txt");
+if (!File.Exists(dbStructurePath))
+{
+    throw new FileNotFoundException(
+        "No se encontró el archivo db-structure.txt. " +
+        "Asegúrate de que existe en la carpeta raíz del proyecto JulieAgent.");
+}
+var dbStructure = File.ReadAllText(dbStructurePath);
+Console.WriteLine($"[Config] Estructura de BD cargada ({dbStructure.Length} caracteres)");
+
+// --- (Opcional) Descargar spec OpenAPI de la Function App ---
+JsonElement? openApiSpecJson = null;
+
+if (!string.IsNullOrEmpty(functionAppBaseUrl) && !functionAppBaseUrl.StartsWith("<"))
+{
+    Console.WriteLine("[OpenAPI] Descargando especificación desde la Function App...");
+    try
+    {
+        var httpClient = new HttpClient();
+        var openApiSpec = await httpClient.GetStringAsync($"{functionAppBaseUrl}/openapi/v3.json");
+        openApiSpecJson = JsonSerializer.Deserialize<JsonElement>(openApiSpec);
+        Console.WriteLine($"[OpenAPI] Especificación descargada ({openApiSpec.Length} bytes)");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[OpenAPI] No se pudo descargar: {ex.Message}");
+        Console.WriteLine("[OpenAPI] Julie se creará sin herramienta OpenAPI.");
+    }
+}
+else
+{
+    Console.WriteLine("[Config] FunctionAppBaseUrl no configurada.");
+    Console.WriteLine("  → Julie se creará sin herramienta OpenAPI (ejecución SQL pendiente).");
+    Console.WriteLine("  → Configure FunctionAppBaseUrl en appsettings.json cuando la Function App esté desplegada.");
+}
+
+// --- Cliente del proyecto Foundry ---
+AIProjectClient projectClient = new(
+    endpoint: new Uri(foundryEndpoint),
+    tokenProvider: new DefaultAzureCredential());
+
+// =====================================================================
+//  FASE 1: Crear/verificar los 3 agentes en Microsoft Foundry
+// =====================================================================
+
+Console.WriteLine();
+Console.WriteLine("========================================");
+Console.WriteLine(" Julie - Orquestador de Campañas");
+Console.WriteLine("========================================");
+Console.WriteLine();
+
+// --- Helper para crear o reutilizar un agente ---
+async Task EnsureAgent(string agentName, object agentDefinition)
+{
+    Console.WriteLine($"[Foundry] Buscando agente '{agentName}'...");
+    try
+    {
+        AgentRecord existing = projectClient.Agents.GetAgent(agentName);
+        Console.WriteLine($"[Foundry] Agente '{agentName}' encontrado (ID: {existing.Name})");
+        Console.Write($"[Foundry] ¿Desea sobreescribir '{agentName}' con una nueva versión? (s/N): ");
+        var answer = Console.ReadLine();
+        var shouldOverride = answer?.Trim().Equals("s", StringComparison.OrdinalIgnoreCase) == true
+                          || answer?.Trim().Equals("si", StringComparison.OrdinalIgnoreCase) == true
+                          || answer?.Trim().Equals("sí", StringComparison.OrdinalIgnoreCase) == true;
+
+        if (!shouldOverride)
+        {
+            Console.WriteLine($"[Foundry] Se conserva '{agentName}' existente.");
+            return;
+        }
+    }
+    catch (ClientResultException ex) when (ex.Status == 404)
+    {
+        Console.WriteLine($"[Foundry] Agente '{agentName}' no encontrado. Se creará uno nuevo.");
+    }
+
+    var jsonContent = JsonSerializer.Serialize(agentDefinition, new JsonSerializerOptions { WriteIndented = false });
+    var result = await projectClient.Agents.CreateAgentVersionAsync(
+        agentName,
+        BinaryContent.Create(BinaryData.FromString(jsonContent)),
+        new RequestOptions());
+
+    var responseJson = JsonDocument.Parse(result.GetRawResponse().Content.ToString());
+    var version = responseJson.RootElement.TryGetProperty("version", out var vProp) ? vProp.GetString() : "?";
+    Console.WriteLine($"[Foundry] Agente '{agentName}' creado/actualizado (v{version})");
+}
+
+// Crear los 3 agentes
+await EnsureAgent(SqlAgent.Name, SqlAgent.GetAgentDefinition(modelDeployment, dbStructure));
+await EnsureAgent(MarketingAgent.Name, MarketingAgent.GetAgentDefinition(modelDeployment, bingConnectionId));
+await EnsureAgent(JulieOrchestrator.Name, JulieOrchestrator.GetAgentDefinition(modelDeployment, openApiSpecJson));
+
+Console.WriteLine();
+Console.WriteLine("[Foundry] Todos los agentes están listos.");
+
+// =====================================================================
+//  FASE 2: Chat interactivo con Julie
+// =====================================================================
+
+ProjectConversation conversation = projectClient.OpenAI.Conversations.CreateProjectConversation();
+Console.WriteLine($"[Foundry] Conversación creada: {conversation.Id}");
+
+ProjectResponsesClient responseClient = projectClient.OpenAI.GetProjectResponsesClientForAgent(
+    defaultAgent: JulieOrchestrator.Name,
+    defaultConversationId: conversation.Id);
+
+Console.WriteLine();
+Console.WriteLine("=== Chat con Julie (escribe 'salir' para terminar) ===");
+Console.WriteLine("Ejemplo: 'Crea una campaña para clientes que hayan comprado bicicletas'");
+Console.WriteLine();
+
+while (true)
+{
+    Console.Write("Tú: ");
+    var input = Console.ReadLine();
+
+    if (string.IsNullOrWhiteSpace(input) ||
+        input.Equals("salir", StringComparison.OrdinalIgnoreCase))
+        break;
+
+    Console.Write("Julie: ");
+    try
+    {
+        ResponseResult response = responseClient.CreateResponse(input);
+        Console.WriteLine(response.GetOutputText());
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"\n[Error] {ex.Message}");
+    }
+
+    Console.WriteLine();
+}
+
+Console.WriteLine("[Foundry] Chat finalizado.");
+Console.WriteLine("[Foundry] Los agentes permanecen disponibles en Microsoft Foundry.");
