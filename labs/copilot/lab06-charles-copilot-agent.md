@@ -88,7 +88,7 @@ Al completar este laboratorio, lograrás:
 ![imagen](img/image5_Charlie.png)
 
 10. Ahora creemos una nueva carpeta y llamémosla "Products".
-11. Cuando esté listo, sube el archivo "Product\_Catalog" que descargaste desde el repositorio de GitHub `taller-multi-agentic/assets/Product_Catalog.docx`.
+11. Cuando esté listo, sube el archivo "Product\_Catalog" que descargaste desde el repositorio de GitHub [taller-multi-agentic/assets/Product_Catalog.docx](https://github.com/warnov/taller-multi-agentic/blob/main/assets/Product_Catalog.docx).
 12. ¡La base de conocimiento está lista! Volvamos a la configuración del agente.
 
 ---
