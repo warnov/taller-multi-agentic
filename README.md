@@ -48,7 +48,7 @@ Ejemplos de preguntas operativas:
 
 El flujo analítico responde a preguntas de carácter estratégico y exploratorio. Aquí el objetivo no es explicar un caso puntual, sino identificar señales relevantes que ayuden a priorizar acciones y generar planes concretos.
 
-En este flujo, **Julie** (Foundry) actúa como agente planificador de campañas de marketing. Julie orquesta dos sub-agentes internos: `SqlAgent` (que ejecuta consultas SQL contra la base de datos de Fabric vía la Azure Function `SqlExecutor`) para segmentar clientes, y `MarketingAgent` que genera el plan de campaña en formato JSON.
+En este flujo, **Julie** (Foundry) actúa como agente orquestador de campañas de marketing, definido como un `workflow`. Julie coordina un flujo de 5 pasos: (1) extrae el filtro de segmento de clientes del prompt del usuario, (2) invoca a **SqlAgent** para generar la consulta T-SQL correspondiente, (3) ejecuta el T-SQL contra la base de datos de Fabric vía la herramienta OpenAPI (`SqlExecutor` de la Azure Function `FxContosoRetail`), (4) para cada cliente retornado, invoca a **MarketingAgent** (que usa Bing Search para encontrar eventos relevantes y genera un mensaje de marketing personalizado), y (5) organiza todo como un JSON de campaña de correos electrónicos.
 
 Ejemplos de preguntas analíticas y de planificación:
 
@@ -81,7 +81,7 @@ Puedes consultar la documentación completa aquí: [Database Documentation](./as
 - **Anders (Executor Agent)**
   Ejecuta acciones operativas invocando servicios externos mediante una herramienta OpenAPI. Recibe datos de órdenes y llama al endpoint `OrdersReporter` de la Azure Function `FxContosoRetail`, que genera un reporte HTML y lo publica en Blob Storage, retornando la URL del documento. Usa el SDK `Azure.AI.Agents.Persistent` con un modelo GPT-4.1 para interpretar la solicitud, construir el payload JSON y orquestar la llamada a la API.
 - **Julie (Planner Agent)**
-  Se implementa como workflow agent, orquesta `SqlAgent` y `MarketingAgent`, y obtiene segmentos de clientes ejecutando SQL vía OpenAPI (`SqlExecutor` de la Azure Function `FxContosoRetail`) encapsulada en `SqlAgent`.
+  Agente orquestador de campañas de marketing definido como `kind: "workflow"`. Coordina 3 herramientas: **SqlAgent** (`type: "agent"`) que genera consultas T-SQL a partir de lenguaje natural, **ContosoRetailDB** (`type: "openapi"`) que ejecuta el SQL contra la base de datos de Fabric vía la Azure Function `FxContosoRetail`, y **MarketingAgent** (`type: "agent"`) que usa Bing Search para encontrar eventos relevantes y genera mensajes de marketing personalizados por cliente. El resultado final es un JSON de campaña con correos electrónicos listos para enviar.
 
 ### <a id="capa-orquestacion"></a>Copilot Studio – Capa de orquestación
 
@@ -116,7 +116,7 @@ El workshop está dividido en laboratorios independientes pero conectados, organ
 
 ### 2. Laboratorios de Azure AI Foundry
 
-- [Setup de infraestructura de Foundry](./labs/foundry/setup.md)
+- [Setup de infraestructura de Foundry](./labs/foundry/README.md)
 - [Lab 3 – Agente Anders: soporte OpenAPI, despliegue de Function App y ejecución del agente executor](./labs/foundry/lab03-anders-executor-agent.md)
 - [Lab 4 – Agente Julie: workflow agent con sub-agentes SqlAgent y MarketingAgent](./labs/foundry/lab04-julie-planner-agent.md)
 

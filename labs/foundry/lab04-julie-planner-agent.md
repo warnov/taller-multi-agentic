@@ -8,7 +8,7 @@ En este laboratorio construirás y validarás a Julie como agente planner de cam
 
 Este laboratorio asume que ya completaste:
 
-- El despliegue base de infraestructura de Foundry (`labs/foundry/setup.md`)
+- El despliegue base de infraestructura de Foundry (`labs/foundry/README.md`)
 - El flujo de datos en Fabric del **Lab 1** (`../fabric/lab01-data-setup.md`)
 
 ## Checklist rápido

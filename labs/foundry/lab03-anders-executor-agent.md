@@ -76,7 +76,7 @@ Para que Anders pueda interactuar con la API de Contoso Retail, definiremos una 
 
 #### Infraestructura Azure
 
-- Haber completado el **setup de infraestructura** descrito en el [Setup de Foundry](setup.md)
+- Haber completado el **setup de infraestructura** descrito en el [Setup de Foundry](README.md)
 - Tener anotados **todos los valores generados en el despliegue** de la infraestructura (nombres de recursos, URLs, sufijo, endpoint de AI Foundry, etc.)
 - Tener identificados estos 2 valores del Warehouse de Fabric (se usan en el setup actualizado):
     - `FabricWarehouseSqlEndpoint`
