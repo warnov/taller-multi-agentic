@@ -207,7 +207,9 @@ v. Probar nuevamente el agente con la pregunta que no se pudo resolver: What are
 
 ---
 
-## 4. Usar el modelo Semántico como Fuente de datos del Data Agent
+## 4. Usar el modelo Semántico como Fuente de datos del Data Agent (Opcional)
+
+Implementar el punto 4 de [Data setup](lab01-data-setup.md)
 
 ### a. Puedes crear un nuevo data Agent o Eliminar la fuente de datos de Mark
 
