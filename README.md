@@ -4,11 +4,11 @@ Este workshop práctico guía a los participantes en el diseño e implementació
 
 La arquitectura integra tres capas bien definidas:
 
-- **Microsoft Fabric**, como fuente de datos y analítica.
-- **Azure AI Foundry**, como capa de razonamiento y decisión.
-- **Copilot Studio**, como capa de orquestación y experiencia conversacional.
+- **Microsoft Fabric**, como fuente de datos: aloja la base SQL de retail y un Data Agent que responde preguntas en lenguaje natural.
+- **Azure AI Foundry**, como capa de razonamiento y ejecución: agentes que generan reportes HTML vía OpenAPI y planifican campañas de marketing consultando la base de datos.
+- **Copilot Studio**, como capa de orquestación y experiencia conversacional: un agente orquestador que conecta todos los agentes, un agente de producto con conocimiento en SharePoint y un agente hijo que envía correos electrónicos.
 
-Copilot Studio actúa como el único punto de entrada y salida para el usuario, coordinando el trabajo de los agentes de datos y de razonamiento para entregar una única respuesta coherente.
+Copilot Studio actúa como el único punto de entrada y salida para el usuario, coordinando el trabajo de los agentes de datos y de razonamiento para entregar una única respuesta coherente. El agente se publica en Microsoft 365 y Teams para su consumo.
 
 ------
 
@@ -44,68 +44,28 @@ Ejemplos de preguntas operativas:
 - ¿Cuáles son las órdenes y productos de Marco Rivera?
 - Necesito un resumen visual de las compras recientes de un cliente.
 
-### <a id="flujo-analitico"></a>Flujo analítico
+### <a id="flujo-analitico"></a>Flujo analítico y de planificación
 
-El flujo analítico responde a preguntas de carácter estratégico y exploratorio. Aquí el objetivo no es explicar un caso puntual, sino identificar señales relevantes que ayuden a priorizar acciones.
+El flujo analítico responde a preguntas de carácter estratégico y exploratorio. Aquí el objetivo no es explicar un caso puntual, sino identificar señales relevantes que ayuden a priorizar acciones y generar planes concretos.
 
-Ejemplos de preguntas analíticas:
+En este flujo, **Julie** (Foundry) actúa como agente planificador de campañas de marketing. Julie orquesta dos sub-agentes internos: `SqlAgent` (que ejecuta consultas SQL contra la base de datos de Fabric vía la Azure Function `SqlExecutor`) para segmentar clientes, y `MarketingAgent` que genera el plan de campaña en formato JSON.
 
-- ¿Cómo está evolucionando el revenue de un cliente o categoría?
-- ¿Existen cambios en el mix de productos?
-- ¿Se observa un aumento en pagos tardíos o concentración en pocos SKUs?
+Ejemplos de preguntas analíticas y de planificación:
+
+- Crea una campaña para clientes que hayan comprado bicicletas.
+- ¿Qué segmentos de clientes deberían recibir ofertas especiales?
+- Planifica una campaña de retención para clientes inactivos.
 
 ------
 
 ## <a id="arquitectura"></a>Arquitectura y agentes
 
-``` mermaid
----
-config:
-  look: neo
-  theme: neo-dark
----
-flowchart LR
- subgraph CS["Copilot Studio"]
-        Charles["Charles"]
-        Bill((("Bill (Orch)")))
-        Ric{{"Ric (Child)"}}
-  end
- subgraph MF["Microsoft Fabric"]
-        Jeffrey["Mark (Op. Facts)"]
-        Amy["Amy (Analytics)"]
-  end
- subgraph AF["Azure AI Foundry"]
-        Anders["Anders (Executor)"]
-        Julie["Julie (Planner)"]
-  end
-    MF ~~~ AF
-    Charles L_Charles_Bill_0@--> Bill
-    Bill L_Bill_Charles_0@--> Charles & Ric
-    Bill <-- OP1 --> Jeffrey
-    Bill <-- OP2 --> Anders
-    Bill <-- AN1 --> Amy
-    Bill <-- AN2 --> Julie
-
-    linkStyle 1 stroke:#32CD32,stroke-width:3px,color:#32CD32,fill:none
-    linkStyle 2 stroke:#32CD32,stroke-width:3px,color:#32CD32,fill:none
-    linkStyle 3 stroke:#32CD32,stroke-width:3px,color:#32CD32,fill:none
-    linkStyle 4 stroke:#E02828,stroke-width:3px,color:#E02828,fill:none
-    linkStyle 5 stroke:#E02828,stroke-width:3px,color:#E02828,fill:none
-    linkStyle 6 stroke:#2880E0,stroke-width:3px,color:#2880E0,fill:none
-    linkStyle 7 stroke:#2880E0,stroke-width:3px,color:#2880E0,fill:none
-
-    L_Charles_Bill_0@{ curve: natural } 
-    L_Bill_Charles_0@{ curve: natural }
-```
-
-La arquitectura está compuesta por **siete agentes**, distribuidos en tres capas. Cada agente tiene **una única responsabilidad** y atiende **un solo tipo de escenario** (operativo o analítico).
+![alt text](image.png)
 
 ### <a id="capa-datos"></a>Microsoft Fabric – Capa de datos
 
-- **Mark (Operational Facts Agent)**
-  Reconstruye hechos transaccionales exactos usando SQL sobre el modelo de datos. Entrega solo datos trazables, sin interpretación.
-- **Amy (Analytics Agent)**
-  Calcula métricas agregadas, tendencias, variaciones y outliers. Entrega señales cuantitativas, sin recomendaciones.
+- **Mark (Data Agent)**
+  Data Agent de Fabric que interpreta lenguaje natural y consulta el modelo semántico construido sobre la base SQL `db_retail` (tablas `customer`, `orders`, `orderline`, `product`). Reconstruye hechos transaccionales exactos y los entrega como datos trazables, sin interpretación.
 
 #### Documentación de la base de datos
 
@@ -121,16 +81,16 @@ Puedes consultar la documentación completa aquí: [Database Documentation](./as
 - **Anders (Executor Agent)**
   Ejecuta acciones operativas invocando servicios externos mediante una herramienta OpenAPI. Recibe datos de órdenes y llama al endpoint `OrdersReporter` de la Azure Function `FxContosoRetail`, que genera un reporte HTML y lo publica en Blob Storage, retornando la URL del documento. Usa el SDK `Azure.AI.Agents.Persistent` con un modelo GPT-4.1 para interpretar la solicitud, construir el payload JSON y orquestar la llamada a la API.
 - **Julie (Planner Agent)**
-  Convierte señales analíticas en prioridades y planes de acción, incluyendo resúmenes ejecutivos.
+  Se implementa como workflow agent, orquesta `SqlAgent` y `MarketingAgent`, y obtiene segmentos de clientes ejecutando SQL vía OpenAPI (`SqlExecutor` de la Azure Function `FxContosoRetail`) encapsulada en `SqlAgent`.
 
 ### <a id="capa-orquestacion"></a>Copilot Studio – Capa de orquestación
 
-- **Charles (UI Agent)**
-  Interactúa con el usuario, recoge intención y presenta la respuesta final.
+- **Charles (Product Q&A Agent)**
+  Agente analista de producto que responde preguntas usando documentación almacenada en SharePoint como fuente de conocimiento. También realiza análisis competitivo y comparaciones de mercado usando información pública cuando el usuario lo solicita.
 - **Bill (Orchestrator)**
-  Decide el flujo de ejecución, invoca a los agentes correctos en el orden adecuado y consolida el resultado.
+  Orquestador central. Detecta la intención del usuario y delega al agente correcto: conecta agentes externos de Fabric (Mark) y Foundry (Anders) y agentes internos de Copilot Studio (Charles, Ric). Se publica en Microsoft 365 y Teams.
 - **Ric (Child Agent)**
-  Agente hijo que extiende las capacidades de orquestación del sistema.
+  Agente hijo de Bill responsable de enviar correos electrónicos al usuario con la información solicitada (p. ej., resultados de consultas o reportes).
 
 ------
 
@@ -151,20 +111,22 @@ El workshop está dividido en laboratorios independientes pero conectados, organ
 
 ### 1. Laboratorios de Microsoft Fabric
 
-- [Lab 1 – Preparación de datos y modelo de retail](./labs/fabric/lab01-data-setup.md)
-- [Lab 2 – Agente Mark: hechos operativos](./labs/fabric/lab02-mark-facts-agent.md)
-- [Lab 3 – Agente Amy: analítica y señales](./labs/fabric/lab03-amy-analytics-agent.md)
+- [Lab 1 – Setup del ambiente: capacidad de Fabric, workspace, base SQL y modelo semántico](./labs/fabric/lab01-data-setup.md)
+- [Lab 2 – Agente Mark: Data Agent sobre el modelo semántico de retail](./labs/fabric/lab02-mark-facts-agent.md)
 
 ### 2. Laboratorios de Azure AI Foundry
 
-- [Lab 4 – Agente Anders: ejecución operativa](./labs/foundry/lab04-anders-executor-agent.md)
-- [Lab 5 – Agente Julie: planificación analítica](./labs/foundry/lab05-julie-planner-agent.md)
+- [Setup de infraestructura de Foundry](./labs/foundry/setup.md)
+- [Lab 3 – Agente Anders: soporte OpenAPI, despliegue de Function App y ejecución del agente executor](./labs/foundry/lab03-anders-executor-agent.md)
+- [Lab 4 – Agente Julie: workflow agent con sub-agentes SqlAgent y MarketingAgent](./labs/foundry/lab04-julie-planner-agent.md)
 
 ### 3. Laboratorios de Copilot Studio
 
-- [Lab 6 – Agente Charles: experiencia conversacional](./labs/copilot/lab06-charles-copilot-agent.md)
-- [Lab 7 – Agente Ric: agente hijo](./labs/copilot/lab07-ric-child-agent.md)
-- [Lab 8 – Orquestador Bill: control del flujo multi‑agente](./labs/copilot/lab08-bill-orchestrator.md)
+- [Lab 5 – Setup de Copilot Studio: entorno, solución y publisher](./labs/copilot/lab05-mcs-setup.md)
+- [Lab 6 – Agente Charles: Q&A de producto con SharePoint y análisis de mercado](./labs/copilot/lab06-charles-copilot-agent.md)
+- [Lab 7 – Agente Ric: agente hijo para envío de correos + configuración inicial de Bill](./labs/copilot/lab07-ric-child-agent.md)
+- [Lab 8 – Orquestador Bill: conexión de agentes externos (Mark, Anders) e internos (Charles) y reglas de orquestación](./labs/copilot/lab08-bill-orchestrator.md)
+- [Lab 9 – Publicación de Bill en Microsoft 365 / Teams y pruebas end-to-end](./labs/copilot/lab09-bill-publishing.md)
 
 ---
 

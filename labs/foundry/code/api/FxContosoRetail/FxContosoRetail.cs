@@ -158,7 +158,7 @@ public class FxContosoRetail
         catch (SqlException ex)
         {
             _logger.LogError(ex, "SqlExecutor: error SQL al ejecutar consulta.");
-            return new ObjectResult("Error al ejecutar la consulta SQL.")
+            return new ObjectResult($"Error al ejecutar la consulta SQL: {ex.Message}")
             {
                 StatusCode = StatusCodes.Status500InternalServerError
             };

@@ -12,7 +12,6 @@ flowchart LR
 
   subgraph MF["Microsoft Fabric"]
     Mark["Mark (Op. Facts)"]
-    Amy["Amy (Analytics)"]
   end
 
   subgraph AF["Azure AI Foundry"]
@@ -29,7 +28,6 @@ flowchart LR
   Bill --> Ric
   Bill <-->|OP1| Mark
   Bill <-->|OP2| Anders
-  Bill <-->|AN1| Amy
   Bill <-->|AN2| Julie
 
   %% Estilos Verdes: Internos CS (Charles y Ric)
@@ -38,5 +36,5 @@ flowchart LR
   %% Estilos Rojos: Operativos (Mark y Anders)
   linkStyle 4,5 stroke:#E02828,stroke-width:3px,color:#E02828
   
-  %% Estilos Azules: Analíticos (Amy y Julie)
-  linkStyle 6,7 stroke:#2880E0,stroke-width:3px,color:#2880E0
+  %% Estilos Azules: Analíticos (Julie)
+  linkStyle 6 stroke:#2880E0,stroke-width:3px,color:#2880E0

@@ -39,6 +39,9 @@ param fabricWarehouseSqlEndpoint string = ''
 @description('Nombre de la base de datos del Warehouse de Fabric.')
 param fabricWarehouseDatabase string = ''
 
+@description('Connection string SQL completa de Fabric. Se usa para preservar un valor existente cuando no se envían endpoint/database.')
+param fabricWarehouseConnectionString string = ''
+
 // ============================================================================
 // Variables - Sufijo y nombres
 // ============================================================================
@@ -50,14 +53,19 @@ var appServicePlanName = 'asp-contosoretail-${suffix}'
 var functionAppName = 'func-contosoretail-${suffix}'
 var aiFoundryName = 'ais-contosoretail-${suffix}'
 var aiProjectName = 'aip-contosoretail-${suffix}'
+var bingGroundingName = 'bingsearch-${suffix}'
+var bingConnectionName = '${aiFoundryName}-bingsearchconnection'
 
 // Container para el paquete de deployment de la Function App
 var deploymentContainerName = 'app-package-${toLower(functionAppName)}'
-var fabricWarehouseConnectionString = 'Server=tcp:${fabricWarehouseSqlEndpoint},1433;Database=${fabricWarehouseDatabase};Encrypt=True;TrustServerCertificate=False;Authentication=Active Directory Default;Connection Timeout=30;'
 var hasFabricWarehouseConfig = !empty(fabricWarehouseSqlEndpoint) && !empty(fabricWarehouseDatabase)
-var optionalFabricSettings = hasFabricWarehouseConfig
+var computedFabricWarehouseConnectionString = 'Server=tcp:${fabricWarehouseSqlEndpoint},1433;Database=${fabricWarehouseDatabase};Encrypt=True;TrustServerCertificate=False;Authentication=Active Directory Default;Connection Timeout=30;'
+var effectiveFabricWarehouseConnectionString = !empty(fabricWarehouseConnectionString)
+  ? fabricWarehouseConnectionString
+  : (hasFabricWarehouseConfig ? computedFabricWarehouseConnectionString : '')
+var optionalFabricSettings = !empty(effectiveFabricWarehouseConnectionString)
   ? [
-      { name: 'FabricWarehouseConnectionString', value: fabricWarehouseConnectionString }
+      { name: 'FabricWarehouseConnectionString', value: effectiveFabricWarehouseConnectionString }
     ]
   : []
 
@@ -257,6 +265,40 @@ resource gptDeployment 'Microsoft.CognitiveServices/accounts/deployments@2025-06
 }
 
 // ============================================================================
+// 10. Grounding with Bing Search + Connection para Foundry
+// ============================================================================
+
+#disable-next-line BCP081
+resource bingGrounding 'Microsoft.Bing/accounts@2020-06-10' = {
+  name: bingGroundingName
+  location: 'global'
+  sku: {
+    name: 'G1'
+  }
+  kind: 'Bing.Grounding'
+}
+
+#disable-next-line BCP081
+resource bingConnection 'Microsoft.CognitiveServices/accounts/connections@2025-04-01-preview' = {
+  parent: aiFoundry
+  name: bingConnectionName
+  properties: {
+    category: 'ApiKey'
+    target: 'https://api.bing.microsoft.com/'
+    authType: 'ApiKey'
+    credentials: {
+      key: bingGrounding.listKeys().key1
+    }
+    isSharedToAll: true
+    metadata: {
+      ApiType: 'Azure'
+      Location: bingGrounding.location
+      ResourceId: bingGrounding.id
+    }
+  }
+}
+
+// ============================================================================
 // Outputs
 // ============================================================================
 
@@ -268,3 +310,6 @@ output aiFoundryName string = aiFoundryName
 output aiFoundryEndpoint string = aiFoundry.properties.endpoint
 output aiProjectName string = aiProjectName
 output foundryProjectEndpoint string = aiProject.properties.endpoints['AI Foundry API']
+output bingGroundingName string = bingGrounding.name
+output bingConnectionName string = bingConnection.name
+output bingConnectionId string = bingConnection.id

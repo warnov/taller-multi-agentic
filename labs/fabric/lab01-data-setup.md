@@ -189,10 +189,15 @@ Agregar relación
 ![Vista edición](images/sm4.g.1.png)
 
 i. Customer → Orders (1:*)  
+
 ![Customer → Orders](images/sm4.g.2.png)
+
 ii. Orders → Orderline (1:*)  
+
 ![Orders → Orderline](images/sm4.g.3.png)
+
 iii. Orderline → Product (1:1)
+
 ![Orderline → Product](images/sm4.g.4.png)
 
 

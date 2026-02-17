@@ -1,144 +1,71 @@
--- ============================================================================
--- Contoso Retail - Estructura de la Base de Datos
--- Este archivo es usado por SqlAgent para comprender las tablas disponibles
--- y generar consultas T-SQL válidas.
--- ============================================================================
-
--- Tabla: customer
--- Almacena la información de los clientes de Contoso Retail.
-CREATE TABLE customer (
-    CustomerId                 NVARCHAR(50) PRIMARY KEY,
-    CustomerTypeId             NVARCHAR(50),
-    CustomerRelationshipTypeId NVARCHAR(50),
-    DateOfBirth                DATE,
-    CustomerEstablishedDate    DATE,
-    IsActive                   BIT,
-    FirstName                  NVARCHAR(100),
-    LastName                   NVARCHAR(100),
-    Gender                     NVARCHAR(10),
-    PrimaryPhone               NVARCHAR(50),
-    SecondaryPhone             NVARCHAR(50),
-    PrimaryEmail               NVARCHAR(200),
-    SecondaryEmail             NVARCHAR(200),
-    CreatedBy                  NVARCHAR(100),
-    UpdatedBy                  NVARCHAR(100),
-    GoldLoadTimestamp           DATETIME2
-);
-
--- Tabla: orders
--- Almacena los encabezados de las órdenes de compra.
-CREATE TABLE orders (
-    OrderId           NVARCHAR(50) PRIMARY KEY,
-    SalesChannelId    NVARCHAR(50),
-    OrderNumber       NVARCHAR(50),
-    CustomerId        NVARCHAR(50),       -- FK → customer.CustomerId
-    CustomerAccountId NVARCHAR(50),
-    OrderDate         DATE,
-    OrderStatus       NVARCHAR(50),
-    SubTotal          DECIMAL(18,2),
-    TaxAmount         DECIMAL(18,2),
-    OrderTotal        DECIMAL(18,2),
-    PaymentMethod     NVARCHAR(50),
-    IsoCurrencyCode   NVARCHAR(10),
-    CreatedBy         NVARCHAR(100),
-    GoldLoadTimestamp  DATETIME2
-);
-
--- Tabla: orderline
--- Almacena las líneas de detalle de cada orden.
-CREATE TABLE orderline (
-    OrderId           NVARCHAR(50),       -- FK → orders.OrderId
-    OrderLineNumber   INT,
-    ProductId         NVARCHAR(50),       -- FK → product.ProductID
-    Quantity          DECIMAL(18,2),
-    UnitPrice         DECIMAL(18,2),
-    LineTotal         DECIMAL(18,2),
-    DiscountAmount    DECIMAL(18,2),
-    TaxAmount         DECIMAL(18,2),
-    GoldLoadTimestamp  NVARCHAR(50),
-    PRIMARY KEY (OrderId, OrderLineNumber)
-);
-
--- Tabla: product
--- Catálogo de productos de Contoso Retail.
-CREATE TABLE product (
-    ProductID          INT PRIMARY KEY,
-    ProductName        NVARCHAR(200),
-    ProductDescription NVARCHAR(500),
-    BrandName          NVARCHAR(100),
-    ProductNumber      NVARCHAR(50),
-    Color              NVARCHAR(50),
-    ProductModel       NVARCHAR(100),
-    ProductCategoryID  NVARCHAR(50),      -- FK → productcategory.CategoryID
-    CategoryName       NVARCHAR(100),
-    ListPrice          DECIMAL(18,2),
-    StandardCost       DECIMAL(18,2),
-    Weight             NVARCHAR(50),
-    WeightUom          NVARCHAR(10),
-    ProductStatus      NVARCHAR(50),
-    CreatedDate        NVARCHAR(50),
-    SellStartDate      NVARCHAR(50),
-    SellEndDate        NVARCHAR(50),
-    IsoCurrencyCode    NVARCHAR(10),
-    UpdatedDate        NVARCHAR(50),
-    CreatedBy          NVARCHAR(100),
-    UpdatedBy          NVARCHAR(100),
-    GoldLoadTimestamp   DATETIME2
-);
-
--- Tabla: productcategory
--- Categorías de productos (jerárquica).
-CREATE TABLE productcategory (
-    CategoryID          INT PRIMARY KEY,
-    ParentCategoryId    NVARCHAR(50),
-    CategoryName        NVARCHAR(100),
-    CategoryDescription NVARCHAR(500),
-    BrandName           NVARCHAR(100),
-    BrandLogoUrl        NVARCHAR(500),
-    IsActive            BIT,
-    GoldLoadTimestamp    DATETIME2
-);
-
--- Tabla: customeraccount
--- Cuentas asociadas a los clientes.
-CREATE TABLE customeraccount (
-    CustomerAccountId   NVARCHAR(50) PRIMARY KEY,
-    ParentAccountId     NVARCHAR(50),
-    CustomerAccountName NVARCHAR(200),
-    CustomerId          NVARCHAR(50),     -- FK → customer.CustomerId
-    IsoCurrencyCode     NVARCHAR(10),
-    UpdatedBy           NVARCHAR(100),
-    GoldLoadTimestamp    DATETIME2
-);
-
--- Tabla: location
--- Direcciones y ubicaciones de los clientes.
-CREATE TABLE location (
-    LocationId        NVARCHAR(50) PRIMARY KEY,
-    CustomerId        NVARCHAR(50),       -- FK → customer.CustomerId
-    LocationName      NVARCHAR(200),
-    IsActive          BIT,
-    AddressLine1      NVARCHAR(200),
-    AddressLine2      NVARCHAR(200),
-    City              NVARCHAR(100),
-    StateId           NVARCHAR(50),
-    ZipCode           INT,
-    CountryId         NVARCHAR(50),
-    SubdivisionName   NVARCHAR(100),
-    Region            NVARCHAR(100),
-    Latitude          DECIMAL(9,6),
-    Longitude         DECIMAL(9,6),
-    Note              NVARCHAR(500),
-    UpdatedBy         NVARCHAR(100),
-    GoldLoadTimestamp  DATETIME2
-);
-
--- ============================================================================
--- RELACIONES PRINCIPALES:
--- customer.CustomerId → orders.CustomerId
--- orders.OrderId → orderline.OrderId
--- orderline.ProductId → product.ProductID
--- product.ProductCategoryID → productcategory.CategoryID
--- customer.CustomerId → customeraccount.CustomerId
--- customer.CustomerId → location.CustomerId
--- ============================================================================
+________________________________________
+customer
+•	CustomerId
+•	CustomerTypeId
+•	CustomerRelationshipTypeId
+•	DateOfBirth
+•	CustomerEstablishedDate
+•	IsActive
+•	FirstName
+•	LastName
+•	Gender
+•	PrimaryPhone
+•	SecondaryPhone
+•	PrimaryEmail
+•	SecondaryEmail
+•	CreatedBy
+•	UpdatedBy
+•	GoldLoadTimestamp
+________________________________________
+orderline
+•	OrderId
+•	OrderLineNumber
+•	ProductId
+•	Quantity
+•	UnitPrice
+•	LineTotal
+•	DiscountAmount
+•	TaxAmount
+•	GoldLoadTimestamp
+________________________________________
+orders
+•	OrderId
+•	SalesChannelId
+•	OrderNumber
+•	CustomerId
+•	CustomerAccountId
+•	OrderDate
+•	OrderStatus
+•	SubTotal
+•	TaxAmount
+•	OrderTotal
+•	PaymentMethod
+•	IsoCurrencyCode
+•	CreatedBy
+•	GoldLoadTimestamp
+________________________________________
+product
+•	ProductID
+•	ProductName
+•	ProductDescription
+•	BrandName
+•	ProductNumber
+•	Color
+•	ProductModel
+•	ProductCategoryID
+•	CategoryName
+•	ListPrice
+•	StandardCost
+•	Weight
+•	WeightUom
+•	ProductStatus
+•	CreatedDate
+•	SellStartDate
+•	SellEndDate
+•	IsoCurrencyCode
+•	UpdatedDate
+•	CreatedBy
+•	UpdatedBy
+•	GoldLoadTimestamp
+________________________________________
+ 
