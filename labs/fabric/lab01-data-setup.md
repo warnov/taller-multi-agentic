@@ -27,7 +27,7 @@ En la siguiente sección, se presentan los pasos del laboratorio:
 
 ---
 
-## 0 registrar Microsoft.Fabric como recurso en la subscripción
+## 0 Registrar Microsoft.Fabric como recurso en la subscripción
 
 a. Abrir Suscripción en Azure Portal
 
