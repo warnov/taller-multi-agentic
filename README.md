@@ -60,44 +60,7 @@ Ejemplos de preguntas analíticas y de planificación:
 
 ## <a id="arquitectura"></a>Arquitectura y agentes
 
-``` mermaid
----
-config:
-  look: neo
-  theme: neo-dark
----
-flowchart LR
- subgraph CS["Copilot Studio"]
-        Charles["Charles"]
-        Bill((("Bill (Orch)")))
-        Ric{{"Ric (Child)"}}
-  end
- subgraph MF["Microsoft Fabric"]
-        Jeffrey["Mark (Op. Facts)"]
-  end
- subgraph AF["Azure AI Foundry"]
-        Anders["Anders (Executor)"]
-        Julie["Julie (Planner)"]
-  end
-    MF ~~~ AF
-    Charles L_Charles_Bill_0@--> Bill
-    Bill L_Bill_Charles_0@--> Charles & Ric
-    Bill <-- OP1 --> Jeffrey
-    Bill <-- OP2 --> Anders
-    Bill <-- AN2 --> Julie
-
-    linkStyle 1 stroke:#32CD32,stroke-width:3px,color:#32CD32,fill:none
-    linkStyle 2 stroke:#32CD32,stroke-width:3px,color:#32CD32,fill:none
-    linkStyle 3 stroke:#32CD32,stroke-width:3px,color:#32CD32,fill:none
-    linkStyle 4 stroke:#E02828,stroke-width:3px,color:#E02828,fill:none
-    linkStyle 5 stroke:#E02828,stroke-width:3px,color:#E02828,fill:none
-    linkStyle 6 stroke:#2880E0,stroke-width:3px,color:#2880E0,fill:none
-
-    L_Charles_Bill_0@{ curve: natural } 
-    L_Bill_Charles_0@{ curve: natural }
-```
-
-La arquitectura está compuesta por **seis agentes**, distribuidos en tres capas. Cada agente tiene **una única responsabilidad** y atiende **un solo tipo de escenario** (operativo o analítico).
+![alt text](image.png)
 
 ### <a id="capa-datos"></a>Microsoft Fabric – Capa de datos
 
