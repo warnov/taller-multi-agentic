@@ -157,7 +157,7 @@ Probemos Charlie desde la aplicación de Microsoft 365.
 
 ---
 
-**🎉 Misión completada**
+# **🎉 Misión completada**
 
 ✅ ¡Excelente trabajo! Nuestro agente Charlie ya está completo.
 
