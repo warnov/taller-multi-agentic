@@ -1,259 +1,208 @@
-# Microsoft Fabric - Setup del Ambiente
+# Lab 01: Data Setup
+
+# MF – Environment Setup
+
+
+MF – Environment Setup  
+
+Microsoft Fabric – Setup del Ambiente
+
 
 ## 🎯 Mission Brief
 
-En este laboratorio aprenderás a construir la base de tu plataforma de datos utilizando **Microsoft Fabric**. A lo largo de esta guía crearás
-la capacidad de Fabric que funcionará como entorno central para alojar la base de datos y administrar la información de manera organizada y
-escalable.
+En este laboratorio aprenderás a construir la base de tu plataforma de datos utilizando Microsoft Fabric. A lo largo de la guía, crearás la capacidad de Fabric que servirá como entorno central para alojar la base de datos y administrar la información de manera organizada y escalable. Posteriormente, desarrollarás el modelo semántico, habilitando que los datos puedan ser consumidos de forma eficiente por diferentes experiencias analíticas y de inteligencia artificial.
 
-Posteriormente, desarrollarás el **modelo semántico**, habilitando que los datos puedan ser consumidos de forma eficiente por diferentes
-experiencias analíticas y de inteligencia artificial.
-
-Siguiendo las instrucciones paso a paso, obtendrás experiencia práctica en la preparación de datos y en la creación de una base sólida que
-permitirá su integración con soluciones como Copilot y agentes de IA.
-
-------------------------------------------------------------------------
+Siguiendo las instrucciones paso a paso, obtendrás experiencia práctica en la preparación de datos y en la creación de una base sólida que permitirá su integración con soluciones como Copilot y agentes de IA.
 
 ## 🔎 Objetivos
 
 Al completar este laboratorio lograrás:
 
--   Crear la capacidad de Microsoft Fabric **"wsfbcagentic"**.\
--   Crear el workspace **"wsfcagentic"**.\
--   Crear la base de datos SQL **"db_retail"** y cargar los datos.\
--   Crear un **Modelo Semántico** sobre los datos cargados en la base de
-    datos **"db_retail"**.
+1. Crear la capacidad de Microsoft Fabric "wsfbcagentic".
+2. Crear el workspace "wsfcagentic".
+3. Crear base de datos SQL "db_retail" y cargar los datos.
+4. Crear Modelo Semántico sobre los datos cargados a la base de datos "db_retail".
 
-------------------------------------------------------------------------
+En la siguiente sección, se presentan los pasos del laboratorio:
 
-# Desarrollo del Laboratorio
+---
 
-------------------------------------------------------------------------
+## 0 registrar Microsoft.Fabric como recurso en la subscripción
+![Registrar Fabric en la suscripción](images/0.png)
 
-# 1. Crear la capacidad de Microsoft Fabric
+## 1. Crear tu capacidad de Microsoft Fabric
 
-## 1.1 Iniciar sesión
+a. Inicia sesión en [Microsoft Azure](https://portal.azure.com/#home)
 
-1.  Inicia sesión en el portal de **Microsoft Azure**.\
-2.  Busca el servicio **Microsoft Fabric** y selecciónalo.
+b. Buscar el servicio de Microsoft Fabric y seleccionarlo
 
-![imagen](img/image1_2.png)
+![Buscar Servicio](images/1.1.png)
+c. Dar clic en Crear una nueva capacidad de Microsoft Fabric
 
-## 1.2 Crear nueva capacidad
+![Crear Capacidad](images/1.1.c.png)
 
-1.  Haz clic en **Crear una nueva capacidad de Microsoft Fabric**.
+d. Crear un grupo de recursos para la capacidad de Microsoft Fabric
 
-![imagen](img/image2_2.png)
+![Crear Grupo de Recursos](images/1.2.png)
 
-2.  Crea un grupo de recursos para la capacidad de Microsoft Fabric.
+e. Establecer la configuración que se va a crear:
 
-![imagen](img/image3_2.png)
+i. Definir nombre  
+ii. Seleccionar región  
+iii. Cambiar tamaño de capacidad  
+iv. Seleccionar tamaño de capacidad  
+v. Revisar la configuración
 
-## 1.3 Configurar la capacidad
+![Crear Capacidad](images/1.3.e.png)
 
-Establece la configuración que se va a crear:
+f. Una vez validada la configuración, proceder a crear la capacidad de Microsoft Fabric
 
--   Definir nombre.\
--   Seleccionar región.\
--   Seleccionar el tamaño de la capacidad.\
--   Revisar la configuración.
+![Crear Capacidad](images/1.6.png)
 
-![imagen](img/image4_2.png)
+g. Una vez finalice la creación de la capacidad, ya puedes ir al recurso
 
-3.  Una vez validada exitosamente la configuración, procede a crear la
-    capacidad.
+![Crear Capacidad](images/1.7.png)
 
-![imagen](img/image5_2.png)
+h. Explorar el recurso de Microsoft Fabric desplegado
 
-4.  Cuando finalice la creación, podrás ir al recurso.
+i. Iniciar o pausar la capacidad  
+ii. Cambiar el tamaño de la capacidad  
+iii. Nombrar nuevos administradores de la capacidad
 
-![imagen](img/image6_2.png)
 
-## 1.4 Explorar el recurso desplegado
+![Crear Capacidad](images/1.8.png)
 
-En los detalles del recurso en Microsoft Azure podrás:
+---
 
--   Iniciar o pausar la capacidad.\
--   Cambiar el tamaño de la capacidad (aumentar o disminuir).\
--   Nombrar nuevos administradores de la capacidad.
+## 2. Crear tu workspace "wsfcagentic"
 
-![imagen](img/image7_2.png)
+a. Iniciar sesión en [Microsoft Fabric](https://app.fabric.microsoft.com/)
 
-------------------------------------------------------------------------
+b. Ir al tab de Workspaces y seleccionar Nuevo Workspace
 
-# 2. Crear el Workspace "wsfcagentic"
 
-## 2.1 Crear el Workspace
+![Crear Capacidad](images/2.1.png)
 
-1.  Inicia sesión en **Microsoft Fabric**.\
-2.  Ve al tab **Workspaces** y selecciona **Nuevo Workspace**.
+c. Especificar la configuración del workspace
 
-![imagen](img/image8_2.png)
+![Crear Capacidad](images/2.2.png)
 
-3.  Especifica la configuración del workspace.
+d. Especificar el tipo de workspace (Fabric)
 
-![imagen](img/image9_2.png)
+![Crear Capacidad](images/2.3.png)
 
-4.  Define el tipo de workspace.
+e. Seleccionar la capacidad de Fabric que usará el workspace. Solo aparecerán las capacidades que se encuentren encendidas. 
 
-![imagen](img/image10_2.png)
 
-5.  Selecciona la capacidad de Fabric que utilizará el workspace.\
-    \> Solo aparecerán las capacidades que se encuentren encendidas.
+![Crear Capacidad](images/2.4.png)
 
-![imagen](img/image11_2.png)
+f. Al finalizar la configuración especificar que la capacidad usará el fomrato de almacenamiento por defecto y aplicar los cambios para crear el workspace.  Para mayor información sobre Large semantic models in Power BI Premium consultar el [link](https://learn.microsoft.com/es-es/fabric/enterprise/powerbi/service-premium-large-models#enable-large-models).
 
-6.  Finaliza la configuración indicando que la capacidad usará el
-    formato de almacenamiento por defecto y aplica los cambios para
-    crear el workspace.
+![Crear Capacidad](images/2.5.png)
 
-Para mayor información, consulta la documentación oficial.
+f. Una vez se haya creado el workspace tendrá una area de trabajo que luce como la siguiente imagen:
 
-![imagen](img/image12_2.png)
+![Crear Capacidad](images/2.6.png)
+ 
+---
 
-Una vez creado el workspace, verás un área de trabajo similar a la
-siguiente imagen:
+## 3. Crear Base de Datos y Cargar Datos
 
-![imagen](img/image13_2.png)
+a. Seleccionar la opción para crear un nuevo item
 
-------------------------------------------------------------------------
+![Nuevo Item](images/3.1.png)
 
-# 3. Crear Base de Datos y Cargar Datos
+b. Filtrar por SQL database y seleccionar la opción SQL database como se muestra en la imagen
 
-## 3.1 Crear la base de datos
+![Buscar SQL Data Base](images/3.2.png)
 
-1.  Selecciona la opción para crear un nuevo item.
+c. Asignar el nombre db_retail y crear la base de datos
 
-![imagen](img/image14_2.png)
+![Crear BD](images/3.3.png)
 
-2.  Filtra por **SQL database** y selecciona la opción correspondiente.
+d. Una vez creada la base datos tendrás un nuevo tab abierto y este te permitirá acceder a la base de datos rapidamente. Asimimso, podrás navegar rapidamente sobre los elementos de la base de datos, como tablas, vistas, procedimientos almacenados, funciones, etc, a través del explorador de objetos. 
 
-![imagen](img/image15_2.png)
 
-3.  Asigna el nombre **db_retail** a la base de datos y procede a
-    crearla.
+![Explorar BD](images/3.4.png)
 
-![imagen](img/image16_2.png)
+e. Abrir una pestaña New Query para ejecutar scripts SQL
 
-Una vez creada la base de datos, se abrirá automáticamente un nuevo tab
-que te permitirá acceder rápidamente a ella. Además, podrás navegar por
-los elementos como tablas, vistas, procedimientos almacenados y
-funciones a través del explorador de objetos.
+![Nueva Consulta](images/3.5.png)
 
-![imagen](img/image17_2.png)
+f. Para crear las tablas con sus respectivos datos, copier el código SQL contenido en el archivo [Create database.sql ](SQLScripts/CreateDatabase.sql) y ejecutarlo dando click en la opción Run. 
 
-------------------------------------------------------------------------
+![Creación de tablas e inserción de datos](images/3.6.png)
 
-## 3.2 Cargar los datos
+g. Confirmar ejecución correcta del script
 
-1.  Abre una pestaña para ejecutar scripts SQL seleccionando la opción
-    **New Query**.\
-    Se abrirá un área de trabajo para ejecutar código SQL.
+![Script ejecutado correctamente](images/3.7.png)
 
-![imagen](img/image18_2.png)
+h. Para terminar de ajustar los datos, por favor en la pestaña SQL Query 1, reemplace el código SQL que ya fue ejecutado en el anterior paso por el código del archivo [Update Dates.sql](SQLScripts/UpdateDates.sql)  y ejecutelo. 
 
-2.  Copia el código SQL contenido en el archivo **Create database.sql**
-    y ejecútalo haciendo clic en **Run**.
+![Abrir pestaña de ejecución de Código SQL](images/3.8.png)
 
-![imagen](img/image19_2.png)
+i. Después de ejecutarlo se mostrará que como resultado se han afectado varias filas de las tablas SQL. Este script solo se encarga de hacer ajustes sobre fechas de los datos de la base de datos. 
 
-3.  Una vez ejecutado el script, recibirás una notificación indicando
-    que el código fue ejecutado correctamente.
+![Actualización de datos](images/3.9.png)
 
-![imagen](img/image20_2.png)
+---
 
-4.  En la pestaña **SQL Query 1**, reemplaza el código anterior por el
-    contenido del archivo **Update Dates.sql** y ejecútalo.
+## 4. Crear Modelo Semántico (opcional)
 
-![imagen](img/image21_2.png)
+En Microsoft Fabric, un modelo semántico es la capa de negocio que da significado a los datos técnicos y los hace fáciles de analizar, reutilizar y gobernar.
 
-5.  Como resultado, se mostrará que varias filas fueron afectadas.\
-    Este script realiza ajustes sobre las fechas de los datos en la base
-    de datos.
+a. Ir al workspace
 
-![imagen](img/image22_2.png)
+![ir al Workspace](images/sm4.a.png)
 
-------------------------------------------------------------------------
+b. Abrir el SQL Analytics Endpoint de la base de datos db_retail
 
-# 4. Crear Modelo Semántico (Opcional)
+![SQL Analytics Endpoint ](images/sm4.b.png)
 
-En **Microsoft Fabric**, un **modelo semántico** es la capa de negocio
-que da significado a los datos técnicos y los hace fáciles de analizar,
-reutilizar y gobernar. Traduce la complejidad técnica en un lenguaje de
-negocio mediante métricas, nombres amigables y relaciones, sin que los
-usuarios necesiten conocer SQL ni la estructura física de las tablas.
+c. Crear un nuevo modelo semántico
 
-Además, un modelo semántico puede utilizarse como fuente de datos para
-un **Data Agent**.
+![Nuevo modelo semántico](images/sm4.c.png)
 
-------------------------------------------------------------------------
+d. Configurar el modelo semántico:
 
-## 4.1 Crear el modelo semántico
+i. Nombre: sm_retail  
+ii. Workspace correspondiente  
+iii. Tablas: customer, orders, orderline, product  
+iv. Confirmar
 
-1.  Ve al workspace.
 
-![imagen](img/image23_2.png)
+![Configuración modelo semántico](images/sm4.d.png)
 
-2.  Abre el **SQL Analytics Endpoint** de la base de datos
-    **db_retail**.
+e. Abrir el modelo semántico creado
 
-![imagen](img/image24_2.png)
+![Abrir modelo semántico](images/sm4.e.png)
 
-3.  Crea un nuevo modelo semántico.
+f. Cambiar a la vista de edición
 
-![imagen](img/image25_2.png)
 
-4.  Configura el modelo semántico:
+![Vista edición](images/sm4.f.png)
 
--   Nombre: **sm_retail**\
--   Workspace: **agenticfab**\
--   Tablas: `customer`, `orders`, `orderline`, `product`
+g. Crear relaciones del modelo semántico:
 
-Confirma la creación.
+![Nueva relación](images/sm.4.g.png)
+Agregar relación 
+![Vista edición](images/sm4.g.1.png)
 
-![imagen](img/image26_2.png)
+i. Customer → Orders (1:*)  
+![Customer → Orders](images/sm4.g.2.png)
+ii. Orders → Orderline (1:*)  
+![Orders → Orderline](images/sm4.g.3.png)
+iii. Orderline → Product (1:1)
+![Orderline → Product](images/sm4.g.4.png)
 
-------------------------------------------------------------------------
 
-## 4.2 Editar el modelo semántico
+h. Resultado final del modelo semántico
 
-1.  Ve al workspace, busca el modelo semántico creado y ábrelo.
 
-![imagen](img/image27_2.png)
+![Modelo semántico](images/sm4.g.5.png)
 
-2.  Cambia la vista a modo edición.
+---
 
-![imagen](img/image28_2.png)
+## Mission Complete
 
-------------------------------------------------------------------------
-
-## 4.3 Crear relaciones
-
-Crea las siguientes relaciones:
-
-1.  **Customer → Orders**
-    -   Cardinalidad: 1:\*
-
-![imagen](img/image30_2.png)\
-![imagen](img/image31_2.png)
-
-2.  **Orders → Orderline**
-    -   Cardinalidad: 1:\*
-
-![imagen](img/image32_2.png)
-
-3.  **Orderline → Product**
-    -   Cardinalidad: 1:1
-
-![imagen](img/image33_2.png)
-
-El resultado final deberá verse como el siguiente modelo semántico:
-
-![imagen](img/image34_2.png)
-
-------------------------------------------------------------------------
-
-# 🎉 Mission Complete
-
-Tu plataforma de datos ha sido creada y tus datos están listos para ser
-procesados y consumidos por agentes de IA.
+Tu plataforma de datos ha sido creada y tus datos están listos para ser procesados y consumidos por agentes de IA.

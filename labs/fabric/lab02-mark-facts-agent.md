@@ -1,278 +1,234 @@
-# Microsoft Fabric -- Creación y Configuración del Agente de Datos "Mark"
+# Lab 02: Mark Facts Agent
+
+
+# MF - Mark
+
+Microsoft Fabric - Creación y configuración de agente de datos llamado Mark
 
 ## 🎯 Mission Brief
 
-En este laboratorio aprenderás a construir un agente de datos que
-reconoce e interpreta lenguaje natural utilizando **Microsoft Fabric**.
-A lo largo de esta guía crearás un agente de datos en Microsoft Fabric
-que podrá responder, mediante lenguaje natural, preguntas sobre el
-modelo de datos de órdenes de venta que preparaste en el laboratorio
-anterior.
-
-Siguiendo las instrucciones paso a paso, obtendrás experiencia práctica
-en la configuración de este agente para su posterior utilización en
-**Copilot Studio**.
-
-------------------------------------------------------------------------
+En este laboratorio aprenderás a construir un agente de datos que reconoce e interpreta lenguaje natural utilizando Microsoft Fabric. A lo largo de la guía, crearás un agente de datos en Microsoft Fabric que podrá responder, vía lenguaje natural, preguntas sobre el modelo de datos de órdenes de ventas que preparaste en el paso anterior. Siguiendo las instrucciones paso a paso, obtendrás experiencia práctica en la preparación de este agente de datos para su posterior utilización por Copilot Studio.
 
 ## 🔎 Objetivos
 
 Al completar este laboratorio lograrás:
 
--   Crear el agente de datos llamado **"Mark"**.
--   Revisar y probar las respuestas del agente ante distintas preguntas.
--   Publicar el agente de datos.
--   Utilizar el modelo semántico como fuente de datos del Data Agent.
+1. Crear el agente de datos llamado "Mark".
+2. Revisión y prueba de las respuestas a preguntas.
+3. Publicación del agente de datos.
+4. Usar el modelo Semántico como Fuente de datos del Data Agent
 
-------------------------------------------------------------------------
+En la siguiente sección, se presentan los pasos del laboratorio:
 
-# Desarrollo del Laboratorio
+---
 
-------------------------------------------------------------------------
+## 1. Crear el agente de datos llamado "Mark".
 
-# 1. Crear el agente de datos "Mark"
+### a. Seleccionar la opción para crear un nuevo item
 
-## 1.1 Crear nuevo item
+![Nuevo Item](images/M1.a.png)
 
-1.  Selecciona la opción para crear un nuevo item.
+### b. Buscar "Agent"
 
-![imagen](img/image1_bea5a6e5.png)
+### c. Seleccionar el "Data Agent (preview)"
 
-2.  Busca **"Agent"**.
-3.  Selecciona **"Data Agent (preview)"**.
 
-![imagen](img/image2_bea5a6e5.png)
+![Tipo de Nuevo Item](images/M1.c.png)
 
-4.  Asigna el nombre **"Mark"** y selecciona **Create**.
+### d. Darle el nombre de "Mark" y seleccionar "Create"
 
-![imagen](img/image3_bea5a6e5.png)
 
-------------------------------------------------------------------------
+![Nombre de Agente](images/M1.d.png)
 
-## 1.2 Agregar fuente de datos
+### e. Agregar "Data Source"
 
-1.  Selecciona **Add Data Source**.
+![Data Source](images/M1.e.png)
 
-![imagen](img/image4_bea5a6e5.png)
+### f. Seleccionar la "SQL database" creada en el laborario anterior.
 
-2.  Selecciona la **SQL database** creada en el laboratorio anterior.
+![SQL Database](images/M1.f.png)
 
-![imagen](img/image5_bea5a6e5.png)
+### g. Seleccionar solo las siguientes tablas:
 
-3.  Selecciona únicamente las siguientes tablas:
+i. customer  
+ii. orderline  
+iii. orders  
+iv. product  
 
--   `customer`
--   `orderline`
--   `orders`
--   `product`
+![Tablas de la BD](images/M1.g.png)
 
-![imagen](img/image6_bea5a6e5.png)
+---
 
-------------------------------------------------------------------------
+## 2. Revisión y prueba de las respuestas a preguntas.
 
-# 2. Revisión y prueba de respuestas
+### a. En la sección de "Test the agent's response", prueba las siguientes preguntas en la interfaz disponible para el agente
 
-En la sección **"Test the agent's response"**, prueba las siguientes
-preguntas en la interfaz del agente:
+![Test Mark](images/M2.a.png)
 
-![imagen](img/image7_bea5a6e5.png)
+i. what are the orders from Omar Bennett? / ¿Cuáles son las órdenes de Omar Bennett?  
+ii. what are the orders from Omar Bennett and the detailed products for each order? / ¿Cuáles son las órdenes de Omar Bennett y el detalle de productos de cada orden?  
+iii. What are the order from customer CID-069 from June 2019 to May 2021? / ¿Cuáles son las órdenes para el cliente CID-069 entre julio del 2019 a mayo del 2021?  
+iv. What are the historical trends across all my data? / ¿Cuáles son las tendencias históricas en todos mis datos?
 
--   What are the orders from Omar Bennett?\
-    ¿Cuáles son las órdenes de Omar Bennett?
+v. What are the product details for order F100241? ¿ Cuáles son los detalles de los productos de la orden F100241?
 
--   What are the orders from Omar Bennett and the detailed products for
-    each order?\
-    ¿Cuáles son las órdenes de Omar Bennett y el detalle de productos de
-    cada orden?
+![Test Mark](images/M2.a.v.png)
 
--   What are the orders from customer CID-069 from June 2019 to May
-    2021?\
-    ¿Cuáles son las órdenes para el cliente CID-069 entre junio de 2019
-    y mayo de 2021?
+Si al tratar de recuperar los productos no obtienes respuesta, realizar el paso b
 
--   What are the historical trends across all my data?\
-    ¿Cuáles son las tendencias históricas en todos mis datos?
+---
 
--   What are the product details for order F100241?\
-    ¿Cuáles son los detalles de los productos de la orden F100241?
+### b. Ajustar el comportamiento del Agente en la sección de "Agent Instructions".
 
-Si al intentar recuperar los productos no obtienes respuesta, realiza el
-siguiente paso.
+La sección Agent Instructions define el meta-prompt del Data Agent: establece cómo debe razonar, qué contexto de negocio usar y cómo responder. No ejecuta consultas, pero guía todo el razonamiento, ayudando a producir respuestas más precisas, con prioridad correcta de fuentes, mejor interpretación de la intención del usuario y un formato/estilo esperado.
 
-![imagen](img/image8_bea5a6e5.png)
+Para más información sobre Agent Instructions puedes consultar [Data agent configurations](https://learn.microsoft.com/en-us/fabric/data-science/data-agent-configurations#data-agent-instructions).
 
-------------------------------------------------------------------------
+![Agent Instructions empty](images/M2.b.png)
 
-# 3. Ajustar el comportamiento del Agente (Agent Instructions)
+---
 
-La sección **Agent Instructions** define el *meta‑prompt* del Data
-Agent. Establece cómo debe razonar, qué contexto de negocio utilizar y
-cómo responder.
+### i. Agregar las siguientes instrucciones en la sección de "Agent Instructions"
 
-No ejecuta consultas directamente, pero guía todo el razonamiento,
-ayudando a producir respuestas más precisas, con prioridad correcta de
-fuentes, mejor interpretación de la intención del usuario y un formato
-de respuesta consistente.
+```markdown 
+Fabric Data Agent - Instructions
 
-Para mayor información, consulta la documentación oficial sobre Agent
-Instructions.
+Transactional model for Orders, Customers, and Products
 
-![imagen](img/image9_bea5a6e5.png)
-
-------------------------------------------------------------------------
-
-## 3.1 Instrucciones a agregar
-
-Agrega el siguiente contenido en la sección **Agent Instructions**:
-
-# Fabric Data Agent -- Instructions
-
-*Transactional model for Orders, Customers, and Products*
-
-------------------------------------------------------------------------
-
-## General knowledge
-
-This Data Agent answers questions about **orders**, **customers**, and
-**products**, using a transactional relational data model.
+This Data Agent answers questions about orders, customers, and products.
 
 The data model consists of the following main tables:
 
--   **customers**
--   **orders**
--   **orderline**
--   **products**
+- customers: customer information.
+- orders: general order information (order header).
+- orderline: detailed list of products included in each order.
+- products: product catalog.
 
-------------------------------------------------------------------------
+Key relationships (mandatory joins)
 
-## Key relationships (mandatory joins)
+The agent must always respect the following relationships when generating queries:
 
-1.  **Customer → Orders**
-    -   `customers.customerId = orders.customerId`
-2.  **Orders → Order details**
-    -   `orders.orderId = orderline.orderId`
-3.  **Order details → Products**
-    -   `orderline.productID = products.productID`
+1. Customer - Orders
+   customers.customerId = orders.customerId
+   One customer can have multiple orders.
 
-------------------------------------------------------------------------
+2. Orders - Order details
+   orders.orderId = orderline.orderId
+   One order can contain multiple product lines.
 
-## Reasoning principles
+3. Order details - Products
+   orderline.productID = products.productID
+   Each order line references a product from the catalog.
 
--   Questions about customers must start from `customers`.
--   Questions about orders must use `orders` as the main table.
--   Questions about order details must join `orders`, `orderline`, and
-    `products`.
--   Questions about purchased products must use `orderline` as the
-    central table.
--   If a question is ambiguous, return a reasonable summary and explain
-    the criteria used.
+When a query involves customers, orders, and products, the agent must traverse these relationships.
 
-------------------------------------------------------------------------
+Reasoning principles
 
-## Table descriptions
+- Questions about customers must start from the customers table.
+- Questions about orders must use orders as the main table.
+- Questions about order details must join orders with orderline and products.
+- Questions about products purchased or what a customer bought must use orderline.
+- If a question is ambiguous, the agent should ask for clarification.
 
-### customers
+Table descriptions
 
-Primary key: `customerId`.
+customers
+- Purpose: stores customer information.
+- Primary key: customerId.
+- Contains descriptive customer attributes.
 
-### orders
+orders
+- Purpose: represents the order header.
+- Primary key: orderId.
+- Foreign key: customerId.
+- Contains general information such as order date, status, and order total.
 
-Primary key: `orderId`.\
-Foreign key: `customerId`.
+orderline
+- Purpose: stores detailed product information per order.
+- Foreign keys:
+  orderId -> orders
+  productID -> products
+- Contains quantity, prices, discounts, taxes, and line totals.
 
-### orderline
+products
+- Purpose: master product catalog.
+- Primary key: productID.
+- Contains attributes such as product name, category, and product characteristics.
 
-Foreign keys: - `orderId` - `productID`
+When asked about
 
-### products
+Customers
+- Use customers as the primary table.
+- If orders or purchases are required, join with orders using customerId.
 
-Primary key: `productID`.
+Orders for a customer
+- Filter orders by orders.customerId.
+- Enrich results with customer information from customers.
 
-------------------------------------------------------------------------
+Order details
+- Use orders for general order information.
+- Join with orderline for details and products for product information.
 
-Una vez agregadas las instrucciones, la sección **Agent Instructions**
-deberá verse como en la siguiente imagen:
+Products purchased by a customer
+- Use orderline as the central table.
+- Join with orders to filter by customer.
+- Join with products to retrieve product details.
+---
+```
 
-![imagen](img/image10_bea5a6e5.png)
 
-------------------------------------------------------------------------
 
-## 3.2 Probar nuevamente el agente
+iii. Al finalizar la configuración del comportamiento del agente se tendrá la sección de "Agent Instructions" de esta manera
 
-1.  Limpiar el chat.
-2.  Confirmar que se desea limpiar el chat.
+![Agent Instructions](images/M2.b.3.png)
 
-![imagen](img/image11_bea5a6e5.png)
+iv. Probar nuevamente el agente con las instrucciones agregadas:
+1. limpiar el chat
+2. confirmar que se quiere limpiar el chat
 
-3.  Probar nuevamente la pregunta:
+![Limpiar chat](images/M2.b.4.png)
 
-What are the product details for order F100241?
+v. Probar nuevamente el agente con la pregunta que no se pudo resolver: What are the product details for order F100241?
 
-![imagen](img/image12_bea5a6e5.png)
+![Nueva sesión de chat](images/M2.b.5.png)
 
-------------------------------------------------------------------------
+---
+## 3. Publicación del agente de datos.
 
-# 4. Publicación del agente
+### a. Seleccionar "Publish" en el menu de opciones del agente
 
-1.  Selecciona **Publish** en el menú del agente.
+![Publicar Agente](images/M3.a.png)
 
-![imagen](img/image13_bea5a6e5.png)
+### b. Agregar una descripción que detalle el obejtivo esperado cuando sea utilizado en Copilot Studio
 
-2.  Agrega una descripción que detalle el objetivo esperado cuando sea
-    utilizado en Copilot Studio.
-3.  Selecciona la opción para publicarlo en **Agent Store in Microsoft
-    365 Copilot**.
+### c. Seleccionar la opción para que se publique en "Agent Store in Microsoft 365 Copilot"
 
-![imagen](img/image14_bea5a6e5.png)
+![Publicar Agente](images/M3.c.png)
 
-------------------------------------------------------------------------
+---
 
-# 5. Usar el Modelo Semántico como Fuente de Datos
+## 4. Usar el modelo Semántico como Fuente de datos del Data Agent
 
-Puedes crear un nuevo Data Agent o modificar el existente.
+### a. Puedes crear un nuevo data Agent o Eliminar la fuente de datos de Mark
 
-## 5.1 Eliminar fuente de datos actual
 
-1.  Elimina la fuente de datos de Mark.
+i. Eliminar la fuente de datos de Mark
 
-![imagen](img/image15_bea5a6e5.png)
+![Eliminar nueva fuente de datos](images/M4.a.png)
 
-2.  Elimina las instrucciones de la sección **Agent Instructions**.
+ii. Eliminar la instrucciones de la sección "Agent Instructions"
 
-------------------------------------------------------------------------
+### b. Agregar la nueva fuente de datos
+![Agregar nueva fuente de datos](images/M4.b.png)
 
-## 5.2 Agregar nueva fuente de datos
+### c. Seleccionar el modelo semántico
 
-1.  Agrega la nueva fuente de datos.
+![Seleccionar el modelo semántico](images/M4.c.png)
 
-![imagen](img/image16_bea5a6e5.png)
+### d. Incluir las tablas Customer, Orders, Orderline, y Product
+![seleccionar tablas](images/M4.d.png)
 
-2.  Selecciona el modelo semántico.
+### e. Revisa el agente y si no responde de la forma esperada, agrega las instrucciones en la sección Agent Instructions.
 
-![imagen](img/image17_bea5a6e5.png)
+### f. Si deseas puedes publicar una nueva versión del data agent o dejar la versión construida en el punto anterior
 
-3.  Incluye las tablas:
-
--   `Customer`
--   `Orders`
--   `Orderline`
--   `Product`
-
-![imagen](img/image18_bea5a6e5.png)
-
-------------------------------------------------------------------------
-
-Revisa el comportamiento del agente. Si no responde como se espera,
-agrega nuevamente las instrucciones en la sección **Agent
-Instructions**.
-
-Puedes publicar una nueva versión del Data Agent o mantener la versión
-anterior según tu necesidad.
-
-------------------------------------------------------------------------
-
-# 🎉 Mission Complete
-
-El agente de datos "Mark" ha sido creado, configurado y publicado, listo
-para ser utilizado desde Copilot Studio o integrado en escenarios
-analíticos más avanzados.
