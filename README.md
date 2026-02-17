@@ -60,7 +60,7 @@ Ejemplos de preguntas analíticas y de planificación:
 
 ## <a id="arquitectura"></a>Arquitectura y agentes
 
-![alt text](image.png)
+![alt text](image-1.png)
 
 ### <a id="capa-datos"></a>Microsoft Fabric – Capa de datos
 
