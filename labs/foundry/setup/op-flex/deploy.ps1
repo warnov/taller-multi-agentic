@@ -179,7 +179,7 @@ Write-Host "[4/5] Desplegando infraestructura..." -ForegroundColor Green
 Write-Host "" -ForegroundColor Gray
 Write-Host "  Esto puede tomar ~5 minutos." -ForegroundColor Yellow
 Write-Host ""
-$scriptDir = $PSScriptRoot
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $templateFile = Join-Path $scriptDir "main.bicep"
 $deploymentName = "main"
 
