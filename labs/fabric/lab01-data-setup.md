@@ -19,7 +19,7 @@ Siguiendo las instrucciones paso a paso, obtendrás experiencia práctica en la 
 Al completar este laboratorio lograrás:
 
 1. Crear la capacidad de Microsoft Fabric "wsfbcagentic".
-2. Crear el workspace "wsfcagentic".
+2. Crear el workspace "wsfcagentic". El nombre debe ser único, por lo tanto concatena el nombre de tu usuario a "wsfcagentic"
 3. Crear base de datos SQL "db_retail" y cargar los datos.
 4. Crear Modelo Semántico sobre los datos cargados a la base de datos "db_retail".
 
@@ -53,13 +53,13 @@ d. Crear un grupo de recursos para la capacidad de Microsoft Fabric
 
 e. Establecer la configuración que se va a crear:
 
-i. Definir nombre  
+i. Definir nombre. El nombre debe ser único, por lo tanto concatena el nombre de tu usuario a "wsfcagentic".
 ii. Seleccionar región  
 iii. Cambiar tamaño de capacidad  
 iv. Seleccionar tamaño de capacidad  
 v. Revisar la configuración
 
-![Crear Capacidad](images/1.3.e.png)
+![Validación](images/1.3.e.png)
 
 f. Una vez validada la configuración, proceder a crear la capacidad de Microsoft Fabric
 
@@ -67,7 +67,7 @@ f. Una vez validada la configuración, proceder a crear la capacidad de Microsof
 
 g. Una vez finalice la creación de la capacidad, ya puedes ir al recurso
 
-![Crear Capacidad](images/1.7.png)
+![Explorar el recuros](images/1.7.png)
 
 h. Explorar el recurso de Microsoft Fabric desplegado
 
