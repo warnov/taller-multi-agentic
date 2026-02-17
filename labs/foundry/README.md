@@ -138,6 +138,61 @@ Ambas opciones provisionan los siguientes recursos dentro del Resource Group `rg
 
 ---
 
+### Parámetros del script de despliegue
+
+Ambos scripts (`op-flex/deploy.ps1` y `op-consumption/deploy.ps1`) aceptan los mismos parámetros:
+
+| Parámetro | Obligatorio | Default | Descripción |
+|-----------|:-----------:|---------|-------------|
+| `-TenantName` | **Sí** | — | Nombre del tenant temporal asignado al participante. Se usa para generar un sufijo único de 5 caracteres. |
+| `-Location` | No | `eastus` | Región de Azure donde se despliegan los recursos. |
+| `-ResourceGroupName` | No | `rg-contoso-retail` | Nombre del Resource Group. |
+| `-FabricWarehouseSqlEndpoint` | No | *(vacío)* | Endpoint SQL del Warehouse de Fabric (sin protocolo, sin puerto). Ej: `xyz.datawarehouse.fabric.microsoft.com` |
+| `-FabricWarehouseDatabase` | No | *(vacío)* | Nombre de la base de datos del Warehouse de Fabric. |
+
+#### Comportamiento interactivo
+
+Si ejecutas el script solo con `-TenantName`:
+
+```powershell
+.\deploy.ps1 -TenantName "tu-tenant-temporal"
+```
+
+El script te preguntará interactivamente por los parámetros opcionales. Presiona **Enter** para aceptar el valor por defecto mostrado entre corchetes:
+
+```
+Presiona Enter para default.
+Location [eastus]:                           ← Enter para aceptar eastus
+ResourceGroupName [rg-contoso-retail]:       ← Enter para aceptar rg-contoso-retail
+¿Deseas configurar ahora la conexión SQL de Fabric para Lab05? (s/N):  ← N para omitir
+```
+
+Si respondes **s** a la pregunta de Fabric, te pedirá:
+
+```
+FabricWarehouseSqlEndpoint (sin protocolo, sin puerto): kqbvkk...fabric.microsoft.com
+FabricWarehouseDatabase: retail_sqldatabase_xxx
+```
+
+Si proporcionas solo uno de los dos parámetros de Fabric, el script te pedirá el que falta.
+
+#### Ejecución silenciosa (sin prompts)
+
+Si pasas todos los parámetros por línea de comandos, el script no pregunta nada:
+
+```powershell
+.\deploy.ps1 `
+  -TenantName "tu-tenant-temporal" `
+  -Location "eastus" `
+  -ResourceGroupName "rg-contoso-retail" `
+  -FabricWarehouseSqlEndpoint "xyz.datawarehouse.fabric.microsoft.com" `
+  -FabricWarehouseDatabase "retail_sqldatabase_xxx"
+```
+
+> **Nota:** Si no proporcionas los parámetros de Fabric, el despliegue **no falla**. Omite la configuración de la conexión SQL y muestra un aviso para configurarla manualmente después. La conexión SQL solo se necesita para el Lab 5 (Julie) y la Function App `SqlExecutor`.
+
+---
+
 ### Opción 1 (Recomendada): Flex Consumption (`op-flex`)
 
 Modelo moderno basado en Linux con autenticación por Managed Identity. El Storage Account no expone shared keys y la Function App se autentica mediante URIs de blob/queue/table con credencial de identidad administrada. Los permisos RBAC se asignan automáticamente vía `storage-rbac.bicep`.
@@ -201,18 +256,6 @@ Modelo clásico basado en Windows con autenticación por connection string. Requ
 4. **Revisar la salida.** Al finalizar, el script muestra los nombres y URLs de todos los recursos creados.
 
 ---
-
-### Opciones adicionales (ambas variantes)
-
-Puedes personalizar la región o el nombre del Resource Group:
-
-```powershell
-# Usar otra región
-.\deploy.ps1 -TenantName "tu-tenant" -Location "eastus" -FabricWarehouseSqlEndpoint "<endpoint-sql-fabric>" -FabricWarehouseDatabase "<database-warehouse>"
-
-# Cambiar el nombre del Resource Group
-.\deploy.ps1 -TenantName "tu-tenant" -ResourceGroupName "mi-rg-personalizado" -FabricWarehouseSqlEndpoint "<endpoint-sql-fabric>" -FabricWarehouseDatabase "<database-warehouse>"
-```
 
 ### Verificación
 
