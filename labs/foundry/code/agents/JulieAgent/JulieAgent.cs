@@ -10,7 +10,7 @@
 //
 //  Herramientas:
 //    - SqlAgent        → agente que genera la consulta T-SQL
-//    - ContosoRetailDB → OpenAPI tool que ejecuta el SQL contra la BD
+//    - SqlExecutor     → OpenAPI tool que ejecuta el SQL contra la BD
 //    - MarketingAgent  → agente que genera mensajes de marketing
 //
 //  La URL de la Function App se configura en appsettings.json
@@ -19,6 +19,7 @@
 // =====================================================================
 
 using System.Text.Json;
+using Azure.AI.Projects.OpenAI;
 
 namespace JulieAgent;
 
@@ -41,7 +42,7 @@ public static class JulieOrchestrator
         2. GENERACIÓN SQL: Invoca a SqlAgent pasándole la descripción del segmento.
            SqlAgent te retornará una consulta T-SQL.
 
-        3. EJECUCIÓN SQL: Envía el T-SQL a tu herramienta OpenAPI (ContosoRetailDB)
+        3. EJECUCIÓN SQL: Envía el T-SQL a tu herramienta OpenAPI (SqlExecutor)
            para ejecutarlo contra la base de datos. La herramienta retornará los
            resultados como datos de clientes.
 
@@ -79,62 +80,41 @@ public static class JulieOrchestrator
         """;
 
     /// <summary>
-    /// Construye la definición del agente Julie como workflow.
-    /// Herramientas: SqlAgent (agent), MarketingAgent (agent), ContosoRetailDB (openapi).
-    /// Si openApiSpec es null (Function App no desplegada), la herramienta OpenAPI
-    /// se omite y queda pendiente de configuración.
+    /// Construye la definición del agente Julie como WorkflowAgentDefinition
+    /// usando CSDL YAML, compatible con la API actual.
     /// </summary>
-    public static object GetAgentDefinition(string modelDeployment, JsonElement? openApiSpec = null)
+    public static WorkflowAgentDefinition GetAgentDefinition(string modelDeployment, JsonElement? openApiSpec = null)
     {
-        var tools = new List<object>
-        {
-            // SqlAgent como herramienta tipo agente
-            new
-            {
-                type = "agent",
-                agent = new
-                {
-                    name = SqlAgent.Name,
-                    description = "Agente que genera consultas T-SQL a partir de una descripción en lenguaje natural de un segmento de clientes. Retorna únicamente el código SQL."
-                }
-            },
-            // MarketingAgent como herramienta tipo agente
-            new
-            {
-                type = "agent",
-                agent = new
-                {
-                    name = MarketingAgent.Name,
-                    description = "Agente que genera mensajes de marketing personalizados. Recibe el nombre del cliente y su categoría favorita, busca eventos relevantes en Bing y genera un mensaje motivacional."
-                }
-            }
-        };
+        _ = modelDeployment;
+        _ = openApiSpec;
 
-        // OpenAPI tool para ejecutar SQL contra la BD (solo si la Function App está desplegada)
-        if (openApiSpec.HasValue)
-        {
-            tools.Add(new
-            {
-                type = "openapi",
-                openapi = new
-                {
-                    name = "ContosoRetailDB",
-                    description = "API de Contoso Retail para ejecutar consultas T-SQL contra la base de datos y retornar los resultados como JSON",
-                    spec = openApiSpec.Value,
-                    auth = new { type = "anonymous" }
-                }
-            });
-        }
+        var workflowYaml = $$"""
+kind: Workflow
+trigger:
+  kind: OnActivity
+workflow:
+  actions:
+    - kind: InvokeAzureAgent
+      id: sql_step
+      agent:
+        name: {{SqlAgent.Name}}
+      conversationId: =System.ConversationId
+      input:
+        messages: =System.LastMessage
+      output:
+        messages: Local.SqlMessages
 
-        return new
-        {
-            definition = new
-            {
-                kind = "workflow",
-                model = modelDeployment,
-                instructions = Instructions,
-                tools = tools.ToArray()
-            }
-        };
+    - kind: InvokeAzureAgent
+      id: marketing_step
+      agent:
+        name: {{MarketingAgent.Name}}
+      conversationId: =System.ConversationId
+      input:
+        messages: =Local.SqlMessages
+      output:
+        autoSend: true
+""";
+
+        return ProjectsOpenAIModelFactory.WorkflowAgentDefinition(workflowYaml: workflowYaml);
     }
 }

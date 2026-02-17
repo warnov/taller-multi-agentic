@@ -10,6 +10,8 @@
 
 namespace JulieAgent;
 
+using Azure.AI.Projects.OpenAI;
+
 public static class MarketingAgent
 {
     public const string Name = "MarketingAgent";
@@ -49,30 +51,15 @@ public static class MarketingAgent
     /// Construye la definición del agente para el API de Microsoft Foundry.
     /// MarketingAgent usa Bing Search (grounding) como herramienta.
     /// </summary>
-    public static object GetAgentDefinition(string modelDeployment, string bingConnectionId)
+    public static PromptAgentDefinition GetAgentDefinition(string modelDeployment, string bingConnectionId)
     {
-        return new
+        var bingGroundingAgentTool = new BingGroundingAgentTool(new BingGroundingSearchToolOptions(
+            searchConfigurations: [new BingGroundingSearchConfiguration(projectConnectionId: bingConnectionId)]));
+
+        return new PromptAgentDefinition(modelDeployment)
         {
-            definition = new
-            {
-                kind = "prompt",
-                model = modelDeployment,
-                instructions = Instructions,
-                tools = new object[]
-                {
-                    new
-                    {
-                        type = "bing_grounding",
-                        bing_grounding = new
-                        {
-                            connection = new
-                            {
-                                id = bingConnectionId
-                            }
-                        }
-                    }
-                }
-            }
+            Instructions = Instructions,
+            Tools = { bingGroundingAgentTool }
         };
     }
 }

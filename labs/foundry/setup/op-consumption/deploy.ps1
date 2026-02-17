@@ -27,6 +27,38 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+Write-Host "Presiona Enter para default." -ForegroundColor DarkGray
+
+if (-not $PSBoundParameters.ContainsKey('Location')) {
+    $locationInput = Read-Host "Location [$Location]"
+    if (-not [string]::IsNullOrWhiteSpace($locationInput)) {
+        $Location = $locationInput.Trim()
+    }
+}
+
+if (-not $PSBoundParameters.ContainsKey('ResourceGroupName')) {
+    $resourceGroupInput = Read-Host "ResourceGroupName [$ResourceGroupName]"
+    if (-not [string]::IsNullOrWhiteSpace($resourceGroupInput)) {
+        $ResourceGroupName = $resourceGroupInput.Trim()
+    }
+}
+
+if ([string]::IsNullOrWhiteSpace($FabricWarehouseSqlEndpoint) -and [string]::IsNullOrWhiteSpace($FabricWarehouseDatabase)) {
+    $configureFabricNow = Read-Host "¿Deseas configurar ahora la conexión SQL de Fabric para Lab04? (s/N)"
+    if ($configureFabricNow -match '^(s|si|sí|y|yes)$') {
+        $FabricWarehouseSqlEndpoint = (Read-Host "FabricWarehouseSqlEndpoint (sin protocolo, sin puerto)").Trim()
+        $FabricWarehouseDatabase = (Read-Host "FabricWarehouseDatabase").Trim()
+    }
+}
+
+if (-not [string]::IsNullOrWhiteSpace($FabricWarehouseSqlEndpoint) -and [string]::IsNullOrWhiteSpace($FabricWarehouseDatabase)) {
+    $FabricWarehouseDatabase = (Read-Host "Falta FabricWarehouseDatabase. Ingresa el valor o deja vacío para omitir").Trim()
+}
+
+if ([string]::IsNullOrWhiteSpace($FabricWarehouseSqlEndpoint) -and -not [string]::IsNullOrWhiteSpace($FabricWarehouseDatabase)) {
+    $FabricWarehouseSqlEndpoint = (Read-Host "Falta FabricWarehouseSqlEndpoint. Ingresa el valor o deja vacío para omitir").Trim()
+}
+
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host " Taller Multi-Agéntico - Despliegue" -ForegroundColor Cyan
@@ -43,6 +75,7 @@ Write-Host ""
 $hasFabricSql = -not [string]::IsNullOrWhiteSpace($FabricWarehouseSqlEndpoint)
 $hasFabricDb = -not [string]::IsNullOrWhiteSpace($FabricWarehouseDatabase)
 $hasCompleteFabricConfig = $hasFabricSql -and $hasFabricDb
+$FabricWarehouseConnectionString = ""
 
 if ($hasFabricSql -xor $hasFabricDb) {
     Write-Warning "Se recibió solo uno de los parámetros de Fabric. Se omitirán ambos para no configurar una conexión incompleta."
@@ -52,7 +85,44 @@ if ($hasFabricSql -xor $hasFabricDb) {
 }
 
 if (-not $hasCompleteFabricConfig) {
-    Write-Warning "No se configurará conexión SQL para Lab05 en este despliegue. Deberás ajustarla manualmente luego."
+    Write-Warning "No se configurará conexión SQL para Lab04 en este despliegue. Deberás ajustarla manualmente luego."
+}
+
+$suffixForNames = $null
+if (-not [string]::IsNullOrWhiteSpace($TenantName)) {
+    $suffixTemplateForPreserve = @'
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": { "t": { "type": "string" } },
+  "resources": [],
+  "outputs": { "s": { "type": "string", "value": "[substring(uniqueString(parameters('t')),0,5)]" } }
+}
+'@
+    $suffixTempFileForPreserve = Join-Path $env:TEMP "suffix-calc-preserve.json"
+    $suffixTemplateForPreserve | Out-File -FilePath $suffixTempFileForPreserve -Encoding utf8 -Force
+    $suffixForNames = az deployment group create `
+        --resource-group $ResourceGroupName `
+        --template-file $suffixTempFileForPreserve `
+        --parameters t=$TenantName `
+        --name "suffix-calc-preserve" `
+        --query 'properties.outputs.s.value' `
+        --output tsv 2>$null
+    Remove-Item $suffixTempFileForPreserve -Force -ErrorAction SilentlyContinue
+}
+
+if (-not $hasCompleteFabricConfig -and -not [string]::IsNullOrWhiteSpace($suffixForNames)) {
+    $existingFunctionAppName = "func-contosoretail-$suffixForNames"
+    $existingConnection = az functionapp config appsettings list `
+        --resource-group $ResourceGroupName `
+        --name $existingFunctionAppName `
+        --query "[?name=='FabricWarehouseConnectionString'].value | [0]" `
+        --output tsv 2>$null
+
+    if (-not [string]::IsNullOrWhiteSpace($existingConnection) -and $existingConnection -ne "null") {
+        $FabricWarehouseConnectionString = $existingConnection
+        Write-Host "  Se preservará FabricWarehouseConnectionString existente en la Function App." -ForegroundColor Yellow
+    }
 }
 
 # --- 1. Verificar Azure CLI ---
@@ -60,6 +130,8 @@ Write-Host "[1/5] Verificando Azure CLI..." -ForegroundColor Green
 try {
     $azVersion = az version --output json | ConvertFrom-Json
     Write-Host "  Azure CLI v$($azVersion.'azure-cli') detectado." -ForegroundColor Gray
+    Write-Host "  Registrando provider Microsoft.Bing (si aplica)..." -ForegroundColor Gray
+    az provider register --namespace Microsoft.Bing --output none 2>$null
 } catch {
     Write-Error "Azure CLI no está instalado. Instálalo desde https://aka.ms/installazurecli"
     exit 1
@@ -115,7 +187,7 @@ $deploymentName = "main"
 az deployment group create `
     --resource-group $ResourceGroupName `
     --template-file $templateFile `
-    --parameters tenantName=$TenantName location=$Location fabricWarehouseSqlEndpoint=$FabricWarehouseSqlEndpoint fabricWarehouseDatabase=$FabricWarehouseDatabase `
+    --parameters tenantName=$TenantName location=$Location fabricWarehouseSqlEndpoint=$FabricWarehouseSqlEndpoint fabricWarehouseDatabase=$FabricWarehouseDatabase fabricWarehouseConnectionString="$FabricWarehouseConnectionString" `
     --name $deploymentName `
     --no-wait `
     --output none
@@ -306,7 +378,19 @@ Write-Host "  Function App:        $functionAppName" -ForegroundColor White
 Write-Host "  Function App Base URL:      $functionAppUrl/api" -ForegroundColor White
 Write-Host "  API OrdersReporter:          $apiUrl" -ForegroundColor White
 Write-Host "  Foundry Project Endpoint:    $($outputs.foundryProjectEndpoint.value)" -ForegroundColor White
-if (-not $hasCompleteFabricConfig) {
-    Write-Host "  Aviso Lab05:                 No se configuró la conexión SQL (FabricWarehouseConnectionString). Configúrala manualmente en la Function App." -ForegroundColor Yellow
+Write-Host "  Bing Grounding Resource:     $($outputs.bingGroundingName.value)" -ForegroundColor White
+Write-Host "  Bing Connection Name:        $($outputs.bingConnectionName.value)" -ForegroundColor White
+Write-Host "  Bing Connection ID (Julie):  $($outputs.bingConnectionId.value)" -ForegroundColor White
+if ($hasCompleteFabricConfig) {
+    Write-Host "  Fabric SQL Connection:       actualizada desde parámetros" -ForegroundColor White
+}
+elseif (-not [string]::IsNullOrWhiteSpace($FabricWarehouseConnectionString)) {
+    Write-Host "  Fabric SQL Connection:       preservada desde configuración existente" -ForegroundColor White
+}
+else {
+    Write-Host "  Fabric SQL Connection:       no configurada" -ForegroundColor Yellow
+}
+if (-not $hasCompleteFabricConfig -and [string]::IsNullOrWhiteSpace($FabricWarehouseConnectionString)) {
+    Write-Host "  Aviso Lab04:                 No se configuró la conexión SQL (FabricWarehouseConnectionString). Configúrala manualmente en la Function App." -ForegroundColor Yellow
 }
 Write-Host ""

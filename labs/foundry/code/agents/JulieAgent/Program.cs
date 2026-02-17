@@ -21,7 +21,7 @@ using JulieAgent;
 //
 //  Toda la orquestación la hace Julie internamente:
 //    SqlAgent (tool) → genera T-SQL
-//    ContosoRetailDB (OpenAPI tool) → ejecuta SQL contra la BD
+//    SqlExecutor (OpenAPI tool) → ejecuta SQL contra la BD
 //    MarketingAgent (tool) → genera mensajes personalizados
 //    Julie → organiza el resultado como JSON de campaña
 // =====================================================================
@@ -61,17 +61,33 @@ JsonElement? openApiSpecJson = null;
 if (!string.IsNullOrEmpty(functionAppBaseUrl) && !functionAppBaseUrl.StartsWith("<"))
 {
     Console.WriteLine("[OpenAPI] Descargando especificación desde la Function App...");
-    try
+    var openApiUrl = $"{functionAppBaseUrl}/openapi/v3.json";
+    var maxAttempts = 3;
+    for (var attempt = 1; attempt <= maxAttempts; attempt++)
     {
-        var httpClient = new HttpClient();
-        var openApiSpec = await httpClient.GetStringAsync($"{functionAppBaseUrl}/openapi/v3.json");
-        openApiSpecJson = JsonSerializer.Deserialize<JsonElement>(openApiSpec);
-        Console.WriteLine($"[OpenAPI] Especificación descargada ({openApiSpec.Length} bytes)");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"[OpenAPI] No se pudo descargar: {ex.Message}");
-        Console.WriteLine("[OpenAPI] Julie se creará sin herramienta OpenAPI.");
+        try
+        {
+            using var httpClient = new HttpClient
+            {
+                Timeout = TimeSpan.FromSeconds(20)
+            };
+
+            var openApiSpec = await httpClient.GetStringAsync(openApiUrl);
+            openApiSpecJson = JsonSerializer.Deserialize<JsonElement>(openApiSpec);
+            Console.WriteLine($"[OpenAPI] Especificación descargada ({openApiSpec.Length} bytes)");
+            break;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[OpenAPI] Intento {attempt}/{maxAttempts} falló: {ex.Message}");
+            if (attempt < maxAttempts)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(2));
+                continue;
+            }
+
+            Console.WriteLine("[OpenAPI] Julie se creará sin herramienta OpenAPI.");
+        }
     }
 }
 else
@@ -96,44 +112,55 @@ Console.WriteLine(" Julie - Orquestador de Campañas");
 Console.WriteLine("========================================");
 Console.WriteLine();
 
-// --- Helper para crear o reutilizar un agente ---
-async Task EnsureAgent(string agentName, object agentDefinition)
+// --- Helper para crear o reutilizar un agente (definición tipada) ---
+async Task EnsureAgent(string agentName, AgentDefinition agentDefinition)
 {
     Console.WriteLine($"[Foundry] Buscando agente '{agentName}'...");
+    AgentRecord? existingAgent = null;
+    var shouldOverride = false;
     try
     {
-        AgentRecord existing = projectClient.Agents.GetAgent(agentName);
+        existingAgent = projectClient.Agents.GetAgent(agentName);
+        AgentRecord existing = existingAgent;
         Console.WriteLine($"[Foundry] Agente '{agentName}' encontrado (ID: {existing.Name})");
         Console.Write($"[Foundry] ¿Desea sobreescribir '{agentName}' con una nueva versión? (s/N): ");
         var answer = Console.ReadLine();
-        var shouldOverride = answer?.Trim().Equals("s", StringComparison.OrdinalIgnoreCase) == true
-                          || answer?.Trim().Equals("si", StringComparison.OrdinalIgnoreCase) == true
-                          || answer?.Trim().Equals("sí", StringComparison.OrdinalIgnoreCase) == true;
+        shouldOverride = answer?.Trim().Equals("s", StringComparison.OrdinalIgnoreCase) == true
+                      || answer?.Trim().Equals("si", StringComparison.OrdinalIgnoreCase) == true
+                      || answer?.Trim().Equals("sí", StringComparison.OrdinalIgnoreCase) == true;
 
         if (!shouldOverride)
         {
             Console.WriteLine($"[Foundry] Se conserva '{agentName}' existente.");
             return;
         }
+
     }
     catch (ClientResultException ex) when (ex.Status == 404)
     {
         Console.WriteLine($"[Foundry] Agente '{agentName}' no encontrado. Se creará uno nuevo.");
     }
 
-    var jsonContent = JsonSerializer.Serialize(agentDefinition, new JsonSerializerOptions { WriteIndented = false });
-    var result = await projectClient.Agents.CreateAgentVersionAsync(
-        agentName,
-        BinaryContent.Create(BinaryData.FromString(jsonContent)),
-        new RequestOptions());
+    try
+    {
+        var result = await projectClient.Agents.CreateAgentVersionAsync(
+            agentName,
+            new AgentVersionCreationOptions(agentDefinition));
 
-    var responseJson = JsonDocument.Parse(result.GetRawResponse().Content.ToString());
-    var version = responseJson.RootElement.TryGetProperty("version", out var vProp) ? vProp.GetString() : "?";
-    Console.WriteLine($"[Foundry] Agente '{agentName}' creado/actualizado (v{version})");
+        var responseJson = JsonDocument.Parse(result.GetRawResponse().Content.ToString());
+        var version = responseJson.RootElement.TryGetProperty("version", out var vProp) ? vProp.GetString() : "?";
+        Console.WriteLine($"[Foundry] Agente '{agentName}' creado/actualizado (v{version})");
+    }
+    catch (ClientResultException ex) when (ex.Status == 400 && existingAgent is not null)
+    {
+        Console.WriteLine($"[Foundry] No se pudo crear nueva versión de '{agentName}': {ex.Message}");
+        Console.WriteLine($"[Foundry] Se reutilizará la versión existente de '{agentName}'.");
+    }
 }
 
+
 // Crear los 3 agentes
-await EnsureAgent(SqlAgent.Name, SqlAgent.GetAgentDefinition(modelDeployment, dbStructure));
+await EnsureAgent(SqlAgent.Name, SqlAgent.GetAgentDefinition(modelDeployment, dbStructure, openApiSpecJson));
 await EnsureAgent(MarketingAgent.Name, MarketingAgent.GetAgentDefinition(modelDeployment, bingConnectionId));
 await EnsureAgent(JulieOrchestrator.Name, JulieOrchestrator.GetAgentDefinition(modelDeployment, openApiSpecJson));
 
