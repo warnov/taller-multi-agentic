@@ -3,7 +3,6 @@ using Azure.AI.Projects.OpenAI;
 using Azure.Identity;
 using Microsoft.Extensions.Configuration;
 using System.ClientModel;
-using System.ClientModel.Primitives;
 using System.Text.Json;
 using OpenAI.Responses;
 using JulieAgent;
@@ -196,11 +195,79 @@ while (true)
     try
     {
         ResponseResult response = responseClient.CreateResponse(input);
-        Console.WriteLine(response.GetOutputText());
+
+        // --- DEBUG ---
+        Console.WriteLine();
+        Console.WriteLine($"  [DEBUG] Status: {response.Status}");
+
+        // Serializar response completo a JSON para ver la estructura
+        try
+        {
+            var jsonOpts = new JsonSerializerOptions { WriteIndented = true, MaxDepth = 10 };
+            var responseJson = JsonSerializer.Serialize(response, jsonOpts);
+            Console.WriteLine($"  [DEBUG] Response JSON ({responseJson.Length} chars):");
+            Console.WriteLine(responseJson.Length > 3000 ? responseJson[..3000] + "\n  ... (truncado)" : responseJson);
+        }
+        catch (Exception serEx)
+        {
+            Console.WriteLine($"  [DEBUG] No se pudo serializar response: {serEx.Message}");
+            // Fallback: dump propiedades via reflection
+            foreach (var prop in response.GetType().GetProperties())
+            {
+                try
+                {
+                    var val = prop.GetValue(response);
+                    var valStr = val?.ToString() ?? "(null)";
+                    Console.WriteLine($"  [DEBUG] {prop.Name} ({prop.PropertyType.Name}): {(valStr.Length > 200 ? valStr[..200] + "..." : valStr)}");
+                }
+                catch { Console.WriteLine($"  [DEBUG] {prop.Name}: <error reading>"); }
+            }
+        }
+
+        var outputText = response.GetOutputText();
+        if (!string.IsNullOrEmpty(outputText))
+        {
+            Console.WriteLine();
+            Console.WriteLine(outputText);
+        }
+        else
+        {
+            Console.WriteLine();
+            Console.WriteLine("[Sin texto de salida — revisando conversation items...]");
+
+            // Listar items de la conversación
+            try
+            {
+                var convItems = projectClient.OpenAI.Conversations.GetProjectConversationItems(conversation.Id);
+                int count = 0;
+                foreach (var ci in convItems)
+                {
+                    count++;
+                    // Serializar cada conversation item
+                    try
+                    {
+                        var ciJson = JsonSerializer.Serialize(ci, new JsonSerializerOptions { WriteIndented = true, MaxDepth = 10 });
+                        Console.WriteLine($"  [DEBUG] ConvItem #{count}: {(ciJson.Length > 500 ? ciJson[..500] + "..." : ciJson)}");
+                    }
+                    catch
+                    {
+                        Console.WriteLine($"  [DEBUG] ConvItem #{count}: {ci}");
+                    }
+                }
+                Console.WriteLine($"  [DEBUG] Total conversation items: {count}");
+            }
+            catch (Exception convEx)
+            {
+                Console.WriteLine($"  [DEBUG] Error leyendo conversation: {convEx.Message}");
+            }
+        }
+        // --- FIN DEBUG ---
     }
     catch (Exception ex)
     {
         Console.WriteLine($"\n[Error] {ex.Message}");
+        if (ex.InnerException != null)
+            Console.WriteLine($"  [Inner] {ex.InnerException.Message}");
     }
 
     Console.WriteLine();
