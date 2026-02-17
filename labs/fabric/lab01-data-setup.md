@@ -28,7 +28,13 @@ En la siguiente sección, se presentan los pasos del laboratorio:
 ---
 
 ## 0 registrar Microsoft.Fabric como recurso en la subscripción
-![Registrar Fabric en la suscripción](images/0.png)
+
+a. Abrir Suscripción en Azure Portal
+
+![Abrir suscripción](images/0.1.png)
+
+b. Registrar el recuerso en la suscripción
+![Registrar Fabric en la suscripción](images/0.2.png)
 
 ## 1. Crear tu capacidad de Microsoft Fabric
 
