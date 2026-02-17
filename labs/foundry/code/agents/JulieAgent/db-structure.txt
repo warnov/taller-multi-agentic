@@ -68,12 +68,4 @@ product
 •	UpdatedBy
 •	GoldLoadTimestamp
 ________________________________________
-productcategory
-•	CategoryID
-•	ParentCategoryId
-•	CategoryName
-•	CategoryDescription
-•	BrandName
-•	BrandLogoUrl
-•	IsActive
-•	GoldLoadTimestamp
+ 
