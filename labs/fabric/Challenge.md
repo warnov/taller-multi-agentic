@@ -4,7 +4,7 @@
 
 1. Crear un workspace en fabric: **wsfcagentic2**
 2. Crear en Fabric la base de datos **retail2**
-3. Ejecutar los scripts **Create database v2.sql** y **Update Dates v2.sql**
+3. Ejecutar los scripts [Create databasev2.sql ](SQLScripts/CreateDatabasev2.sql).
 4. Crear un Data Agente llamado **Amy** que se encargue de recuperar la información de los pagos asociados a una orden.  
    Use solo tablas como fuente de datos y no un modelo semántico.
 5. Prueba las siguientes instrucciones:
