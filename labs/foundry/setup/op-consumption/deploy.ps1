@@ -27,6 +27,45 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# --- Verificar PowerShell 7+ ---
+if ($PSVersionTable.PSVersion.Major -lt 7) {
+    Write-Host ""
+    Write-Host "ERROR: Este script requiere PowerShell 7 o superior." -ForegroundColor Red
+    Write-Host "  Version detectada: PowerShell $($PSVersionTable.PSVersion)" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "  Descarga PowerShell 7:" -ForegroundColor Yellow
+    Write-Host "    Windows : https://aka.ms/powershell-release?tag=stable  (MSI installer)" -ForegroundColor Cyan
+    Write-Host "             o ejecuta:  winget install Microsoft.PowerShell" -ForegroundColor Gray
+    Write-Host "    Linux   : https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-linux" -ForegroundColor Cyan
+    Write-Host "    macOS   : https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-macos" -ForegroundColor Cyan
+    Write-Host "             o ejecuta:  brew install powershell/tap/powershell" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  Una vez instalado, abre una terminal 'pwsh' (no 'powershell') y vuelve a ejecutar el script." -ForegroundColor Yellow
+    Write-Host ""
+    exit 1
+}
+
+# Forzar UTF-8 en la consola
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
+# --- Verificar ExecutionPolicy ---
+$execPolicy = Get-ExecutionPolicy -Scope CurrentUser
+if ($execPolicy -eq 'Restricted' -or $execPolicy -eq 'Undefined') {
+    $systemPolicy = Get-ExecutionPolicy -Scope LocalMachine
+    if ($systemPolicy -eq 'Restricted' -or $systemPolicy -eq 'Undefined') {
+        Write-Host ""
+        Write-Host "ERROR: La ExecutionPolicy no permite ejecutar scripts." -ForegroundColor Red
+        Write-Host "  Policy actual (CurrentUser): $execPolicy" -ForegroundColor Red
+        Write-Host "  Policy actual (LocalMachine): $systemPolicy" -ForegroundColor Red
+        Write-Host ""
+        Write-Host "  Ejecuta este comando en pwsh y vuelve a intentar:" -ForegroundColor Yellow
+        Write-Host "    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser" -ForegroundColor Cyan
+        Write-Host ""
+        exit 1
+    }
+}
+
 Write-Host "Presiona Enter para default." -ForegroundColor DarkGray
 
 if (-not $PSBoundParameters.ContainsKey('Location')) {
@@ -88,43 +127,6 @@ if (-not $hasCompleteFabricConfig) {
     Write-Warning "No se configurará conexión SQL para Lab04 en este despliegue. Deberás ajustarla manualmente luego."
 }
 
-$suffixForNames = $null
-if (-not [string]::IsNullOrWhiteSpace($TenantName)) {
-    $suffixTemplateForPreserve = @'
-{
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "contentVersion": "1.0.0.0",
-  "parameters": { "t": { "type": "string" } },
-  "resources": [],
-  "outputs": { "s": { "type": "string", "value": "[substring(uniqueString(parameters('t')),0,5)]" } }
-}
-'@
-    $suffixTempFileForPreserve = Join-Path $env:TEMP "suffix-calc-preserve.json"
-    $suffixTemplateForPreserve | Out-File -FilePath $suffixTempFileForPreserve -Encoding utf8 -Force
-    $suffixForNames = az deployment group create `
-        --resource-group $ResourceGroupName `
-        --template-file $suffixTempFileForPreserve `
-        --parameters t=$TenantName `
-        --name "suffix-calc-preserve" `
-        --query 'properties.outputs.s.value' `
-        --output tsv 2>$null
-    Remove-Item $suffixTempFileForPreserve -Force -ErrorAction SilentlyContinue
-}
-
-if (-not $hasCompleteFabricConfig -and -not [string]::IsNullOrWhiteSpace($suffixForNames)) {
-    $existingFunctionAppName = "func-contosoretail-$suffixForNames"
-    $existingConnection = az functionapp config appsettings list `
-        --resource-group $ResourceGroupName `
-        --name $existingFunctionAppName `
-        --query "[?name=='FabricWarehouseConnectionString'].value | [0]" `
-        --output tsv 2>$null
-
-    if (-not [string]::IsNullOrWhiteSpace($existingConnection) -and $existingConnection -ne "null") {
-        $FabricWarehouseConnectionString = $existingConnection
-        Write-Host "  Se preservará FabricWarehouseConnectionString existente en la Function App." -ForegroundColor Yellow
-    }
-}
-
 # --- 1. Verificar Azure CLI ---
 Write-Host "[1/5] Verificando Azure CLI..." -ForegroundColor Green
 try {
@@ -152,6 +154,47 @@ Write-Host "[3/5] Creando Resource Group '$ResourceGroupName'..." -ForegroundCol
 az group create --name $ResourceGroupName --location $Location --output none
 Write-Host "  Resource Group listo." -ForegroundColor Gray
 
+# Intentar preservar configuración existente (requiere que el RG ya exista)
+$suffixForNames = $null
+if (-not [string]::IsNullOrWhiteSpace($TenantName)) {
+    $suffixTemplateForPreserve = @'
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": { "t": { "type": "string" } },
+  "resources": [],
+  "outputs": { "s": { "type": "string", "value": "[substring(uniqueString(parameters('t')),0,5)]" } }
+}
+'@
+    $suffixTempFileForPreserve = Join-Path $env:TEMP "suffix-calc-preserve.json"
+    [System.IO.File]::WriteAllText($suffixTempFileForPreserve, $suffixTemplateForPreserve, [System.Text.UTF8Encoding]::new($false))
+    $suffixForNames = az deployment group create `
+        --resource-group $ResourceGroupName `
+        --template-file $suffixTempFileForPreserve `
+        --parameters t=$TenantName `
+        --name "suffix-calc-preserve" `
+        --query 'properties.outputs.s.value' `
+        --output tsv 2>$null
+    Remove-Item $suffixTempFileForPreserve -Force -ErrorAction SilentlyContinue
+}
+
+if (-not $hasCompleteFabricConfig -and -not [string]::IsNullOrWhiteSpace($suffixForNames)) {
+    $existingFunctionAppName = "func-contosoretail-$suffixForNames"
+    $existingConnection = az functionapp config appsettings list `
+        --resource-group $ResourceGroupName `
+        --name $existingFunctionAppName `
+        --query "[?name=='FabricWarehouseConnectionString'].value | [0]" `
+        --output tsv 2>$null
+
+    if (-not [string]::IsNullOrWhiteSpace($existingConnection) -and $existingConnection -ne "null") {
+        $FabricWarehouseConnectionString = $existingConnection
+        Write-Host "  Se preservará FabricWarehouseConnectionString existente en la Function App." -ForegroundColor Yellow
+    }
+}
+
+# --- 4. Desplegar Bicep ---
+Write-Host "[4/5] Desplegando infraestructura..." -ForegroundColor Green
+
 # Calcular y mostrar el sufijo antes de desplegar
 $suffixTemplate = @'
 {
@@ -163,7 +206,7 @@ $suffixTemplate = @'
 }
 '@
 $suffixTempFile = Join-Path $env:TEMP "suffix-calc.json"
-$suffixTemplate | Out-File -FilePath $suffixTempFile -Encoding utf8 -Force
+[System.IO.File]::WriteAllText($suffixTempFile, $suffixTemplate, [System.Text.UTF8Encoding]::new($false))
 $suffixResult = az deployment group create `
     --resource-group $ResourceGroupName `
     --template-file $suffixTempFile `
@@ -174,8 +217,6 @@ $suffixResult = az deployment group create `
 Remove-Item $suffixTempFile -Force -ErrorAction SilentlyContinue
 Write-Host "  Sufijo:         $suffixResult" -ForegroundColor Yellow
 
-# --- 4. Desplegar Bicep ---
-Write-Host "[4/5] Desplegando infraestructura..." -ForegroundColor Green
 Write-Host "" -ForegroundColor Gray
 Write-Host "  Esto puede tomar ~5 minutos." -ForegroundColor Yellow
 Write-Host ""
@@ -291,8 +332,9 @@ $functionAppName = $outputs.functionAppName.value
 
 # --- 5. Publicar código de la Function App ---
 Write-Host "[5/5] Publicando código de FxContosoRetail..." -ForegroundColor Green
-$projectDir = Join-Path $scriptDir ".." ".." "code" "api" "FxContosoRetail"
-$publishDir = Join-Path $projectDir "bin" "publish"
+$projectDir = Join-Path (Join-Path (Join-Path (Join-Path $scriptDir "..") "..") "code") "api"
+$projectDir = Join-Path $projectDir "FxContosoRetail"
+$publishDir = Join-Path (Join-Path $projectDir "bin") "publish"
 
 Write-Host "  Compilando proyecto..." -ForegroundColor Gray
 $publishOutput = dotnet publish $projectDir --configuration Release --output $publishDir 2>&1

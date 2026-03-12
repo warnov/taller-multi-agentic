@@ -45,6 +45,8 @@ Después del despliegue, asegúrate de que la Managed Identity de la Function Ap
 4. Busca y agrega la identidad de la Function App.
 	- Nombre esperado: `func-contosoretail-[sufijo]`
 	- Ejemplo: `func-contosoretail-siwhb`
+5. En el rol, selecciona **Contributor** (si tu Fabric está en inglés) o **Colaborador** (si está en español).
+6. Haz click en **Add**.
 
 ### Parte B — Usuario SQL y permisos en la base
 

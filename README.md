@@ -1,14 +1,14 @@
 ## <a id="descripcion-general"></a>Descripción general
 
-Este workshop práctico guía a los participantes en el diseño e implementación de una arquitectura **multi-agente** usando servicios de Microsoft, aplicada a un escenario de negocio tipo **Contoso Retail**. El foco del ejercicio no es construir un sistema productivo, sino entender cómo **orquestar agentes con responsabilidades claras** para resolver distintos tipos de preguntas de negocio sobre un mismo conjunto de datos.
+Este workshop guía a los participantes en el diseño e implementación de una arquitectura **multi-agente** usando servicios de Microsoft, aplicada a un escenario de negocio tipo **Contoso Retail**. El foco del ejercicio no es construir un sistema productivo, sino entender cómo **orquestar agentes con responsabilidades claras** para resolver distintos tipos de preguntas de negocio sobre un mismo conjunto de datos.
 
 La arquitectura integra tres capas bien definidas:
 
 - **Microsoft Fabric**, como fuente de datos: aloja la base SQL de retail y un Data Agent que responde preguntas en lenguaje natural.
-- **Azure AI Foundry**, como capa de razonamiento y ejecución: agentes que generan reportes HTML vía OpenAPI y planifican campañas de marketing consultando la base de datos.
+- **Microsoft Foundry**, como capa de razonamiento y ejecución: agentes que generan reportes HTML vía OpenAPI y planifican campañas de marketing consultando la base de datos.
 - **Copilot Studio**, como capa de orquestación y experiencia conversacional: un agente orquestador que conecta todos los agentes, un agente de producto con conocimiento en SharePoint y un agente hijo que envía correos electrónicos.
 
-Copilot Studio actúa como el único punto de entrada y salida para el usuario, coordinando el trabajo de los agentes de datos y de razonamiento para entregar una única respuesta coherente. El agente se publica en Microsoft 365 y Teams para su consumo.
+Observaremos las capacidades de orquestación tanto en Copilot Studio como en Microsoft Foundry. 
 
 ------
 
@@ -53,7 +53,6 @@ En este flujo, **Julie** (Foundry) actúa como agente orquestador de campañas d
 Ejemplos de preguntas analíticas y de planificación:
 
 - Crea una campaña para clientes que hayan comprado bicicletas.
-- ¿Qué segmentos de clientes deberían recibir ofertas especiales?
 - Planifica una campaña de retención para clientes inactivos.
 
 ------
@@ -76,12 +75,12 @@ Para comprender mejor el modelo de datos sobre el cual operan los agentes de Fab
 
 Puedes consultar la documentación completa aquí: [Database Documentation](./assets/database.md)
 
-### <a id="capa-razonamiento"></a>Azure AI Foundry – Capa de razonamiento
+### <a id="capa-razonamiento"></a>Microsoft Foundry – Capa de razonamiento
 
 - **Anders (Executor Agent)**
   Ejecuta acciones operativas invocando servicios externos mediante una herramienta OpenAPI. Recibe datos de órdenes y llama al endpoint `OrdersReporter` de la Azure Function `FxContosoRetail`, que genera un reporte HTML y lo publica en Blob Storage, retornando la URL del documento. Usa el SDK `Azure.AI.Agents.Persistent` con un modelo GPT-4.1 para interpretar la solicitud, construir el payload JSON y orquestar la llamada a la API.
 - **Julie (Planner Agent)**
-  Agente orquestador de campañas de marketing definido como `kind: "workflow"`. Coordina 3 herramientas: **SqlAgent** (`type: "agent"`) que genera consultas T-SQL a partir de lenguaje natural, **ContosoRetailDB** (`type: "openapi"`) que ejecuta el SQL contra la base de datos de Fabric vía la Azure Function `FxContosoRetail`, y **MarketingAgent** (`type: "agent"`) que usa Bing Search para encontrar eventos relevantes y genera mensajes de marketing personalizados por cliente. El resultado final es un JSON de campaña con correos electrónicos listos para enviar.
+  Agente orquestador de campañas de marketing definido como `kind: "workflow"`. Coordina 3 herramientas: **SqlAgent** (`type: "agent"`) que genera consultas T-SQL a partir de lenguaje natural, y tiene una Azure Function como tool llamada **SqlExecutor** (`type: "openapi"`) que ejecuta el SQL contra la base de datos de Fabric. Dicha función también se encuentra en la Function App `FxContosoRetail` usada previamente por Anders. Finalmente tenemos al **MarketingAgent** (`type: "agent"`) que usa Bing Search para encontrar eventos relevantes y genera mensajes de marketing personalizados por cliente. El resultado final es un JSON de campaña con correos electrónicos listos para enviar.
 
 ### <a id="capa-orquestacion"></a>Copilot Studio – Capa de orquestación
 
@@ -101,7 +100,7 @@ Al finalizar el workshop, los participantes comprenderán:
 - Cómo separar datos, razonamiento y experiencia de usuario.
 - Cómo diseñar agentes con responsabilidades bien delimitadas.
 - Cómo orquestar flujos operativos y analíticos sobre un mismo dominio de negocio.
-- Cómo usar Copilot Studio como capa central de control en soluciones multi-agente.
+- Cómo usar Copilot Studio o Microsoft Foundry como capa central de control en soluciones multi-agente.
 
 Este repositorio sirve como guía práctica y reutilizable para entender y replicar este patrón arquitectónico en escenarios reales.
 
@@ -160,7 +159,7 @@ Cada participante debe tener las siguientes herramientas instaladas en su máqui
 | **.NET 8 SDK** | Compilar y ejecutar las Azure Functions y los agentes de Foundry | [Descargar](https://dotnet.microsoft.com/download/dotnet/8.0) |
 | **Azure CLI** | Autenticarse en Azure, desplegar recursos y asignar roles RBAC | [Instalar](https://learn.microsoft.com/cli/azure/install-azure-cli) |
 | **Azure Functions Core Tools v4** | Publicar Azure Functions a Azure | [Instalar](https://learn.microsoft.com/azure/azure-functions/functions-run-local#install-the-azure-functions-core-tools) |
-| **PowerShell** | Ejecutar scripts de despliegue de infraestructura | Windows: incluido · macOS/Linux: [Instalar PowerShell 7+](https://learn.microsoft.com/powershell/scripting/install/installing-powershell) |
+| **PowerShell 7+** | Ejecutar scripts de despliegue de infraestructura. **Requerido en todos los OS** (incluido Windows). No usar PowerShell 5.1. | [Instalar](https://learn.microsoft.com/powershell/scripting/install/installing-powershell) · Windows: `winget install Microsoft.PowerShell` |
 | **Git** | Clonar el repositorio del taller | [Descargar](https://git-scm.com/downloads) |
 | **VS Code** (recomendado) | Editor de código con extensiones para Azure y .NET | [Descargar](https://code.visualstudio.com/) |
 
@@ -172,9 +171,22 @@ Cada participante debe tener las siguientes herramientas instaladas en su máqui
 > ```
 
 > [!TIP]
+> En **Linux** (Ubuntu/Debian), puedes instalar PowerShell 7 con:
+> ```bash
+> # Instalar PowerShell 7
+> sudo apt-get update && sudo apt-get install -y wget apt-transport-https software-properties-common
+> wget -q "https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb"
+> sudo dpkg -i packages-microsoft-prod.deb && rm packages-microsoft-prod.deb
+> sudo apt-get update && sudo apt-get install -y powershell
+> # Otras herramientas
+> sudo apt-get install -y dotnet-sdk-8.0 azure-cli git
+> ```
+> Ver instrucciones completas en: [Instalar PowerShell en Linux](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-linux)
+
+> [!TIP]
 > En **Windows**, puedes instalar todas las herramientas con winget:
 > ```powershell
-> winget install Microsoft.DotNet.SDK.8 Microsoft.AzureCLI Microsoft.Azure.FunctionsCoreTools Git.Git Microsoft.VisualStudioCode
+> winget install Microsoft.DotNet.SDK.8 Microsoft.AzureCLI Microsoft.Azure.FunctionsCoreTools Microsoft.PowerShell Git.Git Microsoft.VisualStudioCode
 > ```
 
 ### Verificar la instalación
@@ -185,9 +197,19 @@ Después de instalar, verifica que todo esté disponible ejecutando estos comand
 dotnet --version        # Debe mostrar 8.x.x
 az --version            # Debe mostrar azure-cli 2.x.x
 func --version          # Debe mostrar 4.x.x
-pwsh --version          # Debe mostrar PowerShell 7.x.x (macOS/Linux)
+pwsh --version          # Debe mostrar PowerShell 7.x.x (REQUERIDO en todos los OS)
 git --version           # Debe mostrar git version 2.x.x
 ```
+
+### Configurar ExecutionPolicy (solo Windows)
+
+PowerShell en Windows puede bloquear la ejecución de scripts por defecto. Ejecuta **una sola vez** en `pwsh`:
+
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+Esto permite ejecutar scripts locales y scripts descargados que estén firmados. Solo afecta al usuario actual, no requiere permisos de administrador.
 
 ### Recursos Azure
 

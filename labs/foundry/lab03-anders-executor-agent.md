@@ -65,14 +65,30 @@ Para que Anders pueda interactuar con la API de Contoso Retail, definiremos una 
 | **.NET 8 SDK** | Compilar y ejecutar la Function App y el agente Anders | [Descargar](https://dotnet.microsoft.com/download/dotnet/8.0) |
 | **Azure CLI** | Autenticarse en Azure, desplegar recursos y asignar roles RBAC | [Instalar](https://learn.microsoft.com/cli/azure/install-azure-cli) |
 | **Azure Functions Core Tools** | Publicar la Function App a Azure (opción recomendada) | [Instalar](https://learn.microsoft.com/azure/azure-functions/functions-run-local#install-the-azure-functions-core-tools) |
-| **PowerShell** | Ejecutar scripts de despliegue | Windows: incluido · macOS/Linux: [Instalar PowerShell 7+](https://learn.microsoft.com/powershell/scripting/install/installing-powershell) |
+| **PowerShell 7+** | Ejecutar scripts de despliegue. **Requerido en todos los OS** (incluido Windows). No usar PowerShell 5.1. | [Instalar](https://learn.microsoft.com/powershell/scripting/install/installing-powershell) · Windows: `winget install Microsoft.PowerShell` |
 | **Git** | Clonar el repositorio del taller | [Descargar](https://git-scm.com/downloads) |
+
+> [!IMPORTANT]
+> **Windows:** Después de instalar PowerShell 7, configura la ExecutionPolicy ejecutando **una vez** en `pwsh`:
+> ```powershell
+> Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+> ```
 
 > [!TIP]
 > En **macOS**, puedes instalar las herramientas con Homebrew:
 > ```bash
 > brew install dotnet-sdk azure-cli azure-functions-core-tools@4 powershell git
 > ```
+
+> [!TIP]
+> En **Linux** (Ubuntu/Debian), puedes instalar PowerShell 7 con:
+> ```bash
+> sudo apt-get update && sudo apt-get install -y wget apt-transport-https software-properties-common
+> wget -q "https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb"
+> sudo dpkg -i packages-microsoft-prod.deb && rm packages-microsoft-prod.deb
+> sudo apt-get update && sudo apt-get install -y powershell
+> ```
+> Ver: [Instalar PowerShell en Linux](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-linux)
 
 #### Infraestructura Azure
 
