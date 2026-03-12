@@ -1,4 +1,4 @@
-# Microsoft Foundry — Taller Multi-Agéntico
+# Microsoft Foundry — Intro y Setup de Infraestructura
 
 ## Introducción
 
@@ -73,7 +73,7 @@ Estos scripts pueden ser ejecutados desde nuestras máquinas locales. Pero, para
    ```powershell
    az login
    ```
-   Esto abrirá el navegador para que te autentiques con la cuenta de Azure que se te asignó para el laboratorio. Una vez completado, la terminal mostrará la lista de suscripciones disponibles.
+   Esto abrirá el navegador para que te autentiques con la cuenta de Azure que se te asignó para el laboratorio. Una vez completado, la terminal mostrará la lista de suscripciones disponibles. Escoge la opción por defecto (usualmente la primera) o la que corresponda a tu tenant.
 
 3. **Verificar la suscripción activa:**
 
@@ -91,6 +91,7 @@ Estos scripts pueden ser ejecutados desde nuestras máquinas locales. Pero, para
 Una vez confirmado el login con el usuario adecuado a tu suscripción de Azure, ejecuta: 
 
 ``` powershell
+az bicep upgrade
 cd labs\foundry\setup\op-flex
 .\deploy.ps1
 ```
@@ -184,9 +185,9 @@ az role assignment create `
 
 ```
 labs/foundry/
-├── README.md                              ← Este archivo
-├── lab04-anders-executor-agent.md          ← Lab 4: Agente Anders
-├── lab05-julie-planner-agent.md           ← Lab 5: Agente Julie
+├── setup.md                               ← Este archivo
+├── lab03-anders-executor-agent.md          ← Lab 3: Agente Anders
+├── lab04-julie-planner-agent.md           ← Lab 4: Agente Julie
 ├── setup/
 │   ├── op-flex/                           ← ⭐ Opción recomendada (Flex Consumption / Linux)
 │   │   ├── main.bicep
@@ -233,8 +234,8 @@ labs/foundry/
 
 | Lab   | Archivo                                                   | Descripción                                                  |
 | ----- | --------------------------------------------------------- | ------------------------------------------------------------ |
-| Lab 4 | [Anders — Executor Agent](lab04-anders-executor-agent.md) | Crear el agente ejecutor que genera reportes e interactúa con servicios de Contoso Retail. |
-| Lab 5 | [Julie — Planner Agent](lab05-julie-planner-agent.md)     | Crear el agente orquestador de campañas de marketing usando el patrón workflow con sub-agentes (SqlAgent, MarketingAgent) y herramienta OpenAPI. |
+| Lab 3 | [Anders — Executor Agent](lab03-anders-executor-agent.md) | Crear el agente ejecutor que genera reportes e interactúa con servicios de Contoso Retail. |
+| Lab 4 | [Julie — Planner Agent](lab04-julie-planner-agent.md)     | Crear el agente orquestador de campañas de marketing usando el patrón workflow con sub-agentes (SqlAgent, MarketingAgent) y herramienta OpenAPI. |
 
 ---
 
@@ -242,4 +243,4 @@ labs/foundry/
 
 ## Siguiente paso
 
-Una vez completado el setup, continúa con el [Lab 4 — Anders (Executor Agent)](lab04-anders-executor-agent.md).
+Una vez completado el setup, continúa con el [Lab 3 — Anders (Executor Agent)](lab03-anders-executor-agent.md).
