@@ -8,10 +8,13 @@
 4. Crear un Data Agente llamado **Amy** que se encargue de recuperar la información de los pagos asociados a una orden.  
    Use solo tablas como fuente de datos y no un modelo semántico.
 5. Prueba las siguientes instrucciones:
+   
    a. ¿Me puedes dar la información de los pagos de la orden `b71b11f7-e976-4bb6-ab5d-4d9c177258e8`?  
    b. ¿Cuál es el estado de la orden `b71b11f7-e976-4bb6-ab5d-4d9c177258e8`?  
    c. ¿Cuál es la suma de todos los pagos de la orden `002d82fb-ccff-4b81-8556-d59563b97a9f`?  
-   d. ¿Cuál es valor total de la orden `002d82fb-ccff-4b81-8556-d59563b97a9f`?
+   d. ¿Cuál es valor total de la orden `002d82fb-ccff-4b81-8556-d59563b97a9f`? 
+
+   e. **OPCIONAL:** ¿Existe una anomalía de pagos para la orden 002d82fb-ccff-4b81-8556-d59563b97a9f? Una anomalía de pagos se define como la situación en la que el valor total de los pagos es diferente al valor de una orden cuyo estado es Completada.
 
 ## Mission Complete
 
