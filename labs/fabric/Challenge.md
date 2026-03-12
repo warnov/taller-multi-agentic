@@ -1,5 +1,4 @@
 
-![Imagen – portada del documento](image_placeholder_1)
 
 # Challenge
 
