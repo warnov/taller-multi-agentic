@@ -14,17 +14,11 @@
     - [Checklist rápido de validación](#checklist-rápido-de-validación)
     - [Paso 1: Verificar paquetes NuGet](#paso-1-verificar-paquetes-nuget)
     - [Paso 2: Verificar endpoints expuestos](#paso-2-verificar-endpoints-expuestos)
-    - [Paso 3: Verificar compilación](#paso-3-verificar-compilación)
     - [Endpoints OpenAPI generados](#endpoints-openapi-generados)
-  - [3.2 — Redesplegar la Function App](#32--redesplegar-la-function-app)
-    - [¿Cómo obtener `FabricWarehouseSqlEndpoint` y `FabricWarehouseDatabase`?](#cómo-obtener-fabricwarehousesqlendpoint-y-fabricwarehousedatabase)
-    - [Opción 0: Re-ejecutar setup de infraestructura (si necesitas refrescar settings)](#opción-0-re-ejecutar-setup-de-infraestructura-si-necesitas-refrescar-settings)
-    - [Opción A: Usando Azure Functions Core Tools (recomendada)](#opción-a-usando-azure-functions-core-tools-recomendada)
-    - [Opción B: Usando Azure CLI](#opción-b-usando-azure-cli)
-  - [3.3 — Verificar la especificación OpenAPI](#33--verificar-la-especificación-openapi)
+  - [3.2 — Verificar la especificación OpenAPI](#32--verificar-la-especificación-openapi)
     - [Obtener la especificación JSON](#obtener-la-especificación-json)
     - [Explorar el Swagger UI](#explorar-el-swagger-ui)
-  - [3.4 — El agente Anders: Dos versiones de SDK](#34--el-agente-anders-dos-versiones-de-sdk)
+  - [3.3 — El agente Anders: Dos versiones de SDK](#33--el-agente-anders-dos-versiones-de-sdk)
     - [¿Por qué dos versiones?](#por-qué-dos-versiones)
     - [¿Cuál versión debo usar?](#cuál-versión-debo-usar)
     - [Entendiendo el código (versión `ms-foundry/` — recomendada)](#entendiendo-el-código-versión-ms-foundry--recomendada)
@@ -51,10 +45,9 @@ Para que Anders pueda interactuar con la API de Contoso Retail, definiremos una 
 
 | Paso | Descripción |
 |------|-------------|
-| **3.1** | Agregar soporte OpenAPI a la Azure Function `FxContosoRetail` |
-| **3.2** | Redesplegar la Function App con los cambios |
-| **3.3** | Verificar la especificación OpenAPI |
-| **3.4** | Entender, configurar, ejecutar y probar el agente Anders |
+| **3.1** | Verificar el soporte OpenAPI de la Azure Function `FxContosoRetail` |
+| **3.2** | Verificar la especificación OpenAPI |
+| **3.3** | Entender, configurar, ejecutar y probar el agente Anders |
 
 ### Prerrequisitos
 
@@ -62,9 +55,8 @@ Para que Anders pueda interactuar con la API de Contoso Retail, definiremos una 
 
 | Herramienta | Descripción | Descarga |
 |-------------|-------------|----------|
-| **.NET 8 SDK** | Compilar y ejecutar la Function App y el agente Anders | [Descargar](https://dotnet.microsoft.com/download/dotnet/8.0) |
+| **.NET 8 SDK** | Compilar y ejecutar el agente Anders | [Descargar](https://dotnet.microsoft.com/download/dotnet/8.0) |
 | **Azure CLI** | Autenticarse en Azure, desplegar recursos y asignar roles RBAC | [Instalar](https://learn.microsoft.com/cli/azure/install-azure-cli) |
-| **Azure Functions Core Tools** | Publicar la Function App a Azure (opción recomendada) | [Instalar](https://learn.microsoft.com/azure/azure-functions/functions-run-local#install-the-azure-functions-core-tools) |
 | **PowerShell 7+** | Ejecutar scripts de despliegue. **Requerido en todos los OS** (incluido Windows). No usar PowerShell 5.1. | [Instalar](https://learn.microsoft.com/powershell/scripting/install/installing-powershell) · Windows: `winget install Microsoft.PowerShell` |
 | **Git** | Clonar el repositorio del taller | [Descargar](https://git-scm.com/downloads) |
 
@@ -130,31 +122,20 @@ En la versión actual del taller, la Function App `FxContosoRetail` **ya incluye
 
 ### Paso 1: Verificar paquetes NuGet
 
-Abre `FxContosoRetail.csproj` y confirma que existen estas referencias:
+Abre [`labs/foundry/code/api/FxContosoRetail/FxContosoRetail.csproj`](../code/api/FxContosoRetail/FxContosoRetail.csproj) y confirma que existen estas referencias:
 
 - `Microsoft.Azure.Functions.Worker.Extensions.OpenApi`
 - `Microsoft.Data.SqlClient`
 
 ### Paso 2: Verificar endpoints expuestos
 
-Abre `FxContosoRetail.cs` y confirma que existen estos endpoints:
+Abre [`labs/foundry/code/api/FxContosoRetail/FxContosoRetail.cs`](../code/api/FxContosoRetail/FxContosoRetail.cs) y confirma que existen estos endpoints:
 
 - `HolaMundo`
 - `OrdersReporter`
 - `SqlExecutor`
 
-Además, valida que `OrdersReporter` y `SqlExecutor` tengan atributos OpenAPI (`OpenApiOperation`, `OpenApiRequestBody`, `OpenApiResponseWithBody`).
-
-### Paso 3: Verificar compilación
-
-```powershell
-cd labs\foundry\code\api\FxContosoRetail
-dotnet build
-```
-
-Si compila sin errores, puedes pasar al redespliegue del paso 3.2.
-
-> **Nota:** OpenAPI ya está registrado en el proyecto. No necesitas agregar paquetes ni modificar `Program.cs` en este lab.
+Además, valida que `OrdersReporter` y `SqlExecutor` tengan atributos OpenAPI (`OpenApiOperation`, `OpenApiRequestBody`, `OpenApiResponseWithBody`). Justamente estos cambios son los que necesitarás hacer cuando desees exponer tus Azure Functions existentes como herramientas OpenAPI para los agentes.
 
 > [!IMPORTANT]
 > **Sobre la autenticación de los endpoints**
@@ -185,106 +166,7 @@ Una vez desplegada, la Function App expondrá estos endpoints adicionales:
 
 ---
 
-## 3.2 — Redesplegar la Function App
-
-La infraestructura ya está desplegada desde el setup inicial. Solo necesitas **publicar el código actualizado** de la Function App.
-
-> [!IMPORTANT]
-> El setup de infraestructura actualizado (`op-flex/deploy.ps1` y `op-consumption/deploy.ps1`) acepta estos parámetros para configurar SQL del Lab 4:
-> - `FabricWarehouseSqlEndpoint`
-> - `FabricWarehouseDatabase`
->
-> Si no se proporcionan, el despliegue continúa y solo omite la configuración automática del app setting `FabricWarehouseConnectionString`.
-
-### ¿Cómo obtener `FabricWarehouseSqlEndpoint` y `FabricWarehouseDatabase`?
-
-En Fabric, abre tu **Warehouse** y copia el **connection string** (SQL). Verás algo similar a:
-
-```text
-Data Source=kqbvkknqlijebcyrtw2rgtsx2e-dvthxhg2tsuurev2kck26gww4q.database.fabric.microsoft.com,1433;Initial Catalog=retail_sqldatabase_xxx;... 
-```
-
-Mapeo de valores:
-
-- `FabricWarehouseSqlEndpoint` = valor de `Data Source` **sin** `,1433`
-    - Ejemplo: `kqbvkknqlijebcyrtw2rgtsx2e-dvthxhg2tsuurev2kck26gww4q.database.fabric.microsoft.com`
-- `FabricWarehouseDatabase` = valor de `Initial Catalog`
-    - Ejemplo: `retail_sqldatabase_xxx`
-
-> [!TIP]
-> Estos valores se obtienen del entorno de **Fabric desplegado en el Lab 1** (`../fabric/lab01-data-setup.md`).
->
-> Si no estás siguiendo la secuencia completa de laboratorios, en este lab solo necesitamos una base SQL para ejecutar consultas. Puedes usar una base SQL standalone (por ejemplo Azure SQL Database) y ajustar la conexión:
-> - `FabricWarehouseSqlEndpoint` por el host SQL de tu base standalone
-> - `FabricWarehouseDatabase` por el nombre de tu base
->
-> En ese escenario, asegúrate también de configurar permisos de la identidad de la Function App sobre esa base.
-
-### Opción 0: Re-ejecutar setup de infraestructura (si necesitas refrescar settings)
-
-Si quieres redeploy completo (infra + publish) usando el setup:
-
-```powershell
-# Flex Consumption
-cd labs\foundry\setup\op-flex
-.\deploy.ps1 `
-    -TenantName "<tu-tenant>" `
-    -ResourceGroupName "rg-contoso-retail" `
-    -Location "eastus" `
-    -FabricWarehouseSqlEndpoint "<endpoint-sql-fabric>" `
-    -FabricWarehouseDatabase "<database-warehouse>"
-```
-
-```powershell
-# Consumption (Y1)
-cd labs\foundry\setup\op-consumption
-.\deploy.ps1 `
-    -TenantName "<tu-tenant>" `
-    -ResourceGroupName "rg-contoso-retail" `
-    -Location "eastus" `
-    -FabricWarehouseSqlEndpoint "<endpoint-sql-fabric>" `
-    -FabricWarehouseDatabase "<database-warehouse>"
-```
-
-> Si solo cambiaste código de la Function App y no necesitas tocar infraestructura, usa la Opción A u Opción B de abajo.
-
-### Opción A: Usando Azure Functions Core Tools (recomendada)
-
-Si tienes instalado [Azure Functions Core Tools](https://learn.microsoft.com/azure/azure-functions/functions-run-local#install-the-azure-functions-core-tools), el redespliegue es un solo comando:
-
-```powershell
-cd labs\foundry\code\api\FxContosoRetail
-func azure functionapp publish func-contosoretail-<suffix>
-```
-
-> Reemplaza `<suffix>` con el sufijo de 5 caracteres que obtuviste durante el setup (por ejemplo, `func-contosoretail-a1b2c`).
-
-### Opción B: Usando Azure CLI
-
-Si no tienes `func` CLI, puedes publicar manualmente con `az`:
-
-```powershell
-# 1. Compilar el proyecto
-cd labs\foundry\code\api\FxContosoRetail
-dotnet publish --configuration Release --output bin\publish
-
-# 2. Crear el paquete zip
-Compress-Archive -Path "bin\publish\*" -DestinationPath "$env:TEMP\fxcontosoretail.zip" -Force
-
-# 3. Desplegar a Azure
-az functionapp deployment source config-zip `
-    --resource-group rg-contoso-retail `
-    --name func-contosoretail-<suffix> `
-    --src "$env:TEMP\fxcontosoretail.zip"
-
-# 4. Limpiar archivos temporales
-Remove-Item "$env:TEMP\fxcontosoretail.zip" -Force
-Remove-Item "bin\publish" -Recurse -Force
-```
-
----
-
-## 3.3 — Verificar la especificación OpenAPI
+## 3.2 — Verificar la especificación OpenAPI
 
 Una vez desplegada, verifica que los endpoints OpenAPI están disponibles.
 
@@ -312,7 +194,7 @@ Desde la interfaz de Swagger UI puedes explorar los endpoints y probarlos intera
 
 ---
 
-## 3.4 — El agente Anders: Dos versiones de SDK
+## 3.3 — El agente Anders: Dos versiones de SDK
 
 La implementación del agente Anders se proporciona en **dos versiones separadas**, cada una ubicada bajo `labs/foundry/code/agents/AndersAgent/`:
 
@@ -523,7 +405,7 @@ Tú: Hola Anders, ¿qué puedes hacer?
 Anders debería responder explicando que puede generar reportes de órdenes. Luego, prueba con datos reales (pega todo en una sola línea):
 
 ```
-Tú: Genera un reporte para Izabella Celma (periodo: 1-31 enero 2026). Orden ORD-CID-069-001 (2026-01-04): Sport-100 Helmet Black, Contoso Outdoor, Helmets, 6x$34.99=$209.94 | HL Road Frame Red 62, Contoso Outdoor, Road Frames, 10x$1431.50=$14315.00 | Long-Sleeve Logo Jersey S, Contoso Outdoor, Jerseys, 8x$49.99=$399.92. Orden ORD-CID-069-003 (2026-01-08): HL Road Frame Black 58, Contoso Outdoor, Road Frames, 3x$1431.50=$4294.50 | HL Road Frame Red 44, Contoso Outdoor, Road Frames, 7x$1431.50=$10020.50. Orden ORD-CID-069-002 (2026-01-17): HL Road Frame Red 62, Contoso Outdoor, Road Frames, 2x$1431.50=$2863.00 | LL Road Frame Black 60, Contoso Outdoor, Road Frames, 4x$337.22=$1348.88.
+Genera un reporte para Izabella Celma (periodo: 1-31 enero 2026). Orden ORD-CID-069-001 (2026-01-04): Sport-100 Helmet Black, Contoso Outdoor, Helmets, 6x$34.99=$209.94 | HL Road Frame Red 62, Contoso Outdoor, Road Frames, 10x$1431.50=$14315.00 | Long-Sleeve Logo Jersey S, Contoso Outdoor, Jerseys, 8x$49.99=$399.92. Orden ORD-CID-069-003 (2026-01-08): HL Road Frame Black 58, Contoso Outdoor, Road Frames, 3x$1431.50=$4294.50 | HL Road Frame Red 44, Contoso Outdoor, Road Frames, 7x$1431.50=$10020.50. Orden ORD-CID-069-002 (2026-01-17): HL Road Frame Red 62, Contoso Outdoor, Road Frames, 2x$1431.50=$2863.00 | LL Road Frame Black 60, Contoso Outdoor, Road Frames, 4x$337.22=$1348.88.
 ```
 
 Lo que ocurre internamente:
