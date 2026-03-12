@@ -15,4 +15,4 @@
 
 ## Mission Complete
 
-6. Elimine los items que creo que en este reto para liberar recursos en la capacidad de fabric.
+1. Elimine los ítems que creó en este reto para liberar recursos en la capacidad de Microsoft Fabric.
