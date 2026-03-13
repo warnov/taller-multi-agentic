@@ -127,7 +127,7 @@ if (-not [string]::IsNullOrWhiteSpace($TenantName)) {
   "outputs": { "s": { "type": "string", "value": "[substring(uniqueString(parameters('t')),0,5)]" } }
 }
 '@
-    $suffixTempFileForPreserve = Join-Path $env:TMPDIR "/suffix-calc-preserve.json"
+    $suffixTempFileForPreserve = Join-Path "/tmp" "suffix-calc-preserve.json"
     Set-Content -Path $suffixTempFileForPreserve -Value $suffixTemplateForPreserve -Encoding utf8
     $suffixForNames = az deployment group create `
         --resource-group $ResourceGroupName `
@@ -166,7 +166,7 @@ $suffixTemplate = @'
   "outputs": { "s": { "type": "string", "value": "[substring(uniqueString(parameters('t')),0,5)]" } }
 }
 '@
-$suffixTempFile = Join-Path $env:TMPDIR "/suffix-calc.json"
+$suffixTempFile = Join-Path "/tmp" "suffix-calc.json"
 Set-Content -Path $suffixTempFile -Value $suffixTemplate -Encoding utf8
 $suffixResult = az deployment group create `
     --resource-group $ResourceGroupName `
@@ -306,7 +306,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # Crear zip para deployment
-$zipPath = Join-Path $env:TMPDIR "fxcontosoretail-publish.zip"
+$zipPath = Join-Path "/tmp" "fxcontosoretail-publish.zip"
 if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
 Compress-Archive -Path "$publishDir/*" -DestinationPath $zipPath -Force
 

@@ -51,10 +51,7 @@ GitHub Codespaces proporciona un entorno de desarrollo completo en la nube, pre-
 ### Paso 1: Acceder al repositorio en GitHub
 
 1. Abre el navegador y navega a la URL del repositorio GitHub del taller que te indicó el instructor.
-2. Inicia sesión en GitHub con tu cuenta personal (o la cuenta que te hayan indicado para el taller).
-
-> ⚠️ Si el repositorio es **privado**, asegúrate de que el instructor te haya añadido como colaborador. Deberías poder ver el código fuente sin ningún error de acceso antes de continuar.
-
+2. Inicia sesión en GitHub.
 ---
 
 ### Paso 2: Crear el Codespace
@@ -98,11 +95,11 @@ Si los tres responden correctamente, el entorno está listo para los siguientes 
 
 ### Paso 4: Identificar tu número de tenant
 
-Antes de autenticarte en Azure, identifica el **número de tenant** asignado para el taller. Este número está incluido en el nombre del usuario que el instructor te asignó.
+Antes de ejecutar el script, identifica el **número de tenant** asignado para el taller. Este número está incluido en el nombre del usuario que el instructor te asignó.
 
 **Ejemplo:** si tu usuario es `usuario@azurehol3387.com`, tu número de tenant es **`3387`**.
 
-Anota este número — lo necesitarás en el Paso 6.
+El script te lo pedirá de forma interactiva — solo necesitas tenerlo a mano.
 
 ---
 
@@ -144,7 +141,7 @@ az account set --subscription "nombre-o-id-de-la-suscripcion"
 
 ---
 
-### Paso 6: Obtener los parámetros de Microsoft Fabric (opcional — solo para Lab 4)
+### Paso 6: Obtener los parámetros de Microsoft Fabric
 
 Para el Lab 4 (Julie/SqlAgent), necesitarás dos valores del Warehouse de Fabric:
 
@@ -168,14 +165,15 @@ cd labs/foundry/setup/op-flex
 Ejecuta el script de despliegue (usando `pwsh` para iniciar PowerShell 7):
 
 ```bash
-pwsh ./deployFromAzure.ps1 -TenantName "XXXX"
+pwsh ./deployFromAzure.ps1
 ```
 
-Reemplaza `XXXX` con tu número de tenant (ej: `3387`).
-
-El script te pedirá confirmar los parámetros. Presiona <kbd>Enter</kbd> para aceptar los valores por defecto de `Location` y `ResourceGroupName`:
+El script te pedirá todos los parámetros de forma interactiva. Ingresa tu número de tenant cuando se solicite y presiona <kbd>Enter</kbd> para aceptar los valores por defecto de `Location` y `ResourceGroupName`:
 
 ```
+Cmdlet deployFromAzure.ps1 at command pipeline position 1
+Supply values for the following parameters:
+TenantName: 3387
 Presiona Enter para default.
 Location [eastus]:
 ResourceGroupName [rg-contoso-retail]:
