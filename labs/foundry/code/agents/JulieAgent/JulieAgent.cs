@@ -107,6 +107,6 @@ actions:
       name: {{MarketingAgent.Name}}
 """;
 
-        return new WorkflowAgentDefinition(workflowYaml);
+        return ProjectsOpenAIModelFactory.WorkflowAgentDefinition(workflowYaml: workflowYaml);
     }
 }
