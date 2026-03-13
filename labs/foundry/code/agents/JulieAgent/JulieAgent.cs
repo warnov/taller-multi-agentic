@@ -89,7 +89,7 @@ public static class JulieOrchestrator
         _ = openApiSpec;
 
         var workflowYaml = $$"""
-kind: Workflow
+kind: workflow
 trigger:
   kind: OnConversationStart
   id: julie_workflow
@@ -99,12 +99,14 @@ trigger:
       conversationId: =System.ConversationId
       agent:
         name: {{SqlAgent.Name}}
-
     - kind: InvokeAzureAgent
       id: marketing_step
       conversationId: =System.ConversationId
       agent:
         name: {{MarketingAgent.Name}}
+    - kind: EndConversation
+      id: end_conversation
+name: {{Name}}
 """;
 
         Console.WriteLine("[DEBUG] Workflow YAML que se enviará a Foundry:");
