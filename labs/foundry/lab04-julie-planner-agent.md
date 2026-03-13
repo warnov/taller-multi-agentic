@@ -383,13 +383,14 @@ Abre `labs/foundry/code/agents/JulieAgent/appsettings.json` y reemplaza todos lo
 
 Todos estos valores los obtienes de la salida del script de despliegue (o del portal → recurso AI Foundry → **Project settings** → **Overview**).
 
-> El `BingConnectionId` es el ID completo del recurso de conexión (ARM resource ID). Lo puedes obtener también con:
+> Para obtener el `BingConnectionId` directamente, ejecuta:
 > ```bash
-> az cognitiveservices account list \
+> az cognitiveservices account connection list \
+>     --name ais-contosoretail-<suffix> \
 >     --resource-group rg-contoso-retail \
->     --query "[0].id" -o tsv
+>     --query "[?contains(name,'bing')].id" -o tsv
 > ```
-> y luego concatenar `/connections/ais-contosoretail-<suffix>-bingsearchconnection`.
+> Reemplaza `<suffix>` con tu sufijo. El comando retorna el ARM resource ID completo listo para pegar.
 
 ### Paso 2: Asegurarte de que los permisos de Fabric están configurados
 

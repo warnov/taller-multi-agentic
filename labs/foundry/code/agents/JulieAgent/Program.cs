@@ -34,7 +34,7 @@ var foundryEndpoint = config["FoundryProjectEndpoint"]
     ?? throw new InvalidOperationException("Falta FoundryProjectEndpoint en appsettings.json");
 var modelDeployment = config["ModelDeploymentName"]
     ?? throw new InvalidOperationException("Falta ModelDeploymentName en appsettings.json");
-var bingConnectionId = config["BingConnectionId"]
+var bingConnectionId = config["BingConnectionId"]?.TrimEnd('/')
     ?? throw new InvalidOperationException("Falta BingConnectionId en appsettings.json");
 
 // URL base de la Function App con el ejecutor de consultas SQL.
