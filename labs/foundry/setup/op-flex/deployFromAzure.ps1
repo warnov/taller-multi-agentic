@@ -306,9 +306,14 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # Crear zip para deployment
-$zipPath = Join-Path "/tmp" "fxcontosoretail-publish.zip"
+# FIX: Compress-Archive en PowerShell 7 sobre Linux excluye directorios ocultos (dotfiles)
+# como .azurefunctions, que Flex Consumption valida como obligatorio.
+# Se usa el comando zip del sistema, que con '.' incluye todos los archivos sin excepción.
+$zipPath = "/tmp/fxcontosoretail-publish.zip"
 if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
-Compress-Archive -Path "$publishDir/*" -DestinationPath $zipPath -Force
+Push-Location $publishDir
+& zip -r $zipPath . | Out-Null
+Pop-Location
 
 # Esperar a que el SCM endpoint esté disponible
 # Nota: en Cloud Shell (Linux) se usa [System.Net.Dns] ya que Resolve-DnsName no está disponible.
