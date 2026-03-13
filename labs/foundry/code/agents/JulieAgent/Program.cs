@@ -142,11 +142,33 @@ async Task EnsureAgent(string agentName, AgentDefinition agentDefinition)
 
     try
     {
+        var creationOpts = new AgentVersionCreationOptions(agentDefinition);
+
+        // --- DEBUG: Mostrar JSON del request ---
+        try
+        {
+            var debugJson = System.Text.Json.JsonSerializer.Serialize(agentDefinition,
+                new JsonSerializerOptions { WriteIndented = true });
+            Console.WriteLine($"[DEBUG] AgentDefinition JSON para '{agentName}':");
+            Console.WriteLine(debugJson);
+        }
+        catch (Exception dex)
+        {
+            Console.WriteLine($"[DEBUG] No se pudo serializar AgentDefinition: {dex.Message}");
+        }
+        // --- FIN DEBUG ---
+
         var result = await projectClient.Agents.CreateAgentVersionAsync(
             agentName,
-            new AgentVersionCreationOptions(agentDefinition));
+            creationOpts);
 
-        var responseJson = JsonDocument.Parse(result.GetRawResponse().Content.ToString());
+        // --- DEBUG: Mostrar raw response ---
+        var rawResponse = result.GetRawResponse().Content.ToString();
+        Console.WriteLine($"[DEBUG] Raw API Response para '{agentName}':");
+        Console.WriteLine(rawResponse.Length > 2000 ? rawResponse[..2000] + "\n... (truncado)" : rawResponse);
+        // --- FIN DEBUG ---
+
+        var responseJson = JsonDocument.Parse(rawResponse);
         var version = responseJson.RootElement.TryGetProperty("version", out var vProp) ? vProp.GetString() : "?";
         Console.WriteLine($"[Foundry] Agente '{agentName}' creado/actualizado (v{version})");
     }
