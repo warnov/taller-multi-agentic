@@ -247,7 +247,7 @@ Reemplaza los valores `<sufijo>` con el sufijo que obtuviste en el paso anterior
 }
 ```
 
-> **TenantId**: déjalo vacío si solo tienes una cuenta de Azure activa en el Codespace (lo habitual). Si eres instructor con múltiples tenants, ingresa el Tenant ID del tenant del taller:
+> **TenantId**: déjalo vacío si solo tienes una cuenta de Azure activa en el Codespace (lo habitual). Si estás trabajando localmente y tienes múltiples tenants, ingresa el Tenant ID del tenant del taller:
 > ```bash
 > az account show --query tenantId -o tsv
 > ```
@@ -265,17 +265,20 @@ Para que los agentes puedan crearse y ejecutarse, tu usuario necesita el rol **C
 Ejecuta estos comandos en la terminal del Codespace (bash):
 
 ```bash
-# Obtener el UPN del usuario autenticado
-upn=$(az account show --query "user.name" -o tsv)
+# Obtener el Object ID del usuario autenticado (funciona con cuentas MSA/personales y cuentas de trabajo)
+objectId=$(az ad signed-in-user show --query id -o tsv 2>/dev/null || \
+    az account get-access-token --query accessToken -o tsv | \
+    python3 -c "import sys,base64,json; t=sys.stdin.read().strip(); p=t.split('.')[1]; p+='='*(4-len(p)%4); print(json.loads(base64.b64decode(p))['oid'])")
 
 # Obtener el nombre del recurso AI Services creado por el despliegue
 aisName=$(az cognitiveservices account list \
     --resource-group rg-contoso-retail \
     --query "[0].name" -o tsv)
 
-# Asignar el rol
+# Asignar el rol usando el Object ID (no requiere permisos de Graph API)
 az role assignment create \
-    --assignee "$upn" \
+    --assignee-object-id "$objectId" \
+    --assignee-principal-type User \
     --role "Cognitive Services User" \
     --scope "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/rg-contoso-retail/providers/Microsoft.CognitiveServices/accounts/$aisName"
 ```
@@ -283,6 +286,8 @@ az role assignment create \
 Espera **1 minuto** para que se propague el permiso antes de ejecutar los agentes.
 
 > **Nota:** Si obtienes un error `RoleAssignmentExists`, el rol ya fue asignado automáticamente por el script de despliegue. Puedes continuar.
+
+> **¿Por qué `--assignee-object-id` en vez de `--assignee`?** El comando `--assignee` intenta resolver el UPN/email a un Object ID consultando Microsoft Graph. Las cuentas Microsoft personales (`@hotmail.com`, `@outlook.com`, `@live.com`) no tienen permisos para hacer esa consulta en el Graph API del tenant, lo que genera el error `Insufficient privileges`. Usando `--assignee-object-id` se omite esa consulta y la asignación funciona directamente.
 
 ---
 
