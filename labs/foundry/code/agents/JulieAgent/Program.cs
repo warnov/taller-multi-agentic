@@ -34,8 +34,8 @@ var foundryEndpoint = config["FoundryProjectEndpoint"]
     ?? throw new InvalidOperationException("Falta FoundryProjectEndpoint en appsettings.json");
 var modelDeployment = config["ModelDeploymentName"]
     ?? throw new InvalidOperationException("Falta ModelDeploymentName en appsettings.json");
-var bingConnectionId = config["BingConnectionId"]?.TrimEnd('/')
-    ?? throw new InvalidOperationException("Falta BingConnectionId en appsettings.json");
+var bingConnectionName = config["BingConnectionName"]
+    ?? throw new InvalidOperationException("Falta BingConnectionName en appsettings.json");
 
 // URL base de la Function App con el ejecutor de consultas SQL.
 // Se configura en appsettings.json cuando la función esté desplegada.
@@ -182,7 +182,7 @@ async Task EnsureAgent(string agentName, AgentDefinition agentDefinition)
 
 // Crear los 3 agentes
 await EnsureAgent(SqlAgent.Name, SqlAgent.GetAgentDefinition(modelDeployment, dbStructure, openApiSpecJson));
-await EnsureAgent(MarketingAgent.Name, MarketingAgent.GetAgentDefinition(modelDeployment, bingConnectionId));
+await EnsureAgent(MarketingAgent.Name, MarketingAgent.GetAgentDefinition(modelDeployment, bingConnectionName));
 await EnsureAgent(JulieOrchestrator.Name, JulieOrchestrator.GetAgentDefinition(modelDeployment, openApiSpecJson));
 
 Console.WriteLine();

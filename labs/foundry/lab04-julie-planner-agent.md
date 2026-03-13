@@ -252,7 +252,7 @@ Racional de diseño:
 
 ```csharp
 var bingGroundingAgentTool = new BingGroundingAgentTool(new BingGroundingSearchToolOptions(
-	searchConfigurations: [new BingGroundingSearchConfiguration(projectConnectionId: bingConnectionId)]));
+	searchConfigurations: [new BingGroundingSearchConfiguration(projectConnectionId: bingConnectionName)]));
 
 return new PromptAgentDefinition(modelDeployment)
 {
@@ -348,7 +348,7 @@ Luego registra los 3 agentes en orden. En la implementación actual, `SqlAgent` 
 
 ```csharp
 await EnsureAgent(SqlAgent.Name, SqlAgent.GetAgentDefinition(modelDeployment, dbStructure, openApiSpecJson));
-await EnsureAgent(MarketingAgent.Name, MarketingAgent.GetAgentDefinition(modelDeployment, bingConnectionId));
+await EnsureAgent(MarketingAgent.Name, MarketingAgent.GetAgentDefinition(modelDeployment, bingConnectionName));
 await EnsureAgent(JulieOrchestrator.Name, JulieOrchestrator.GetAgentDefinition(modelDeployment, openApiSpecJson));
 ```
 
@@ -377,20 +377,20 @@ Abre `labs/foundry/code/agents/JulieAgent/appsettings.json` y reemplaza todos lo
   "FoundryProjectEndpoint": "https://ais-contosoretail-<suffix>.services.ai.azure.com/api/projects/aip-contosoretail-<suffix>",
   "ModelDeploymentName": "gpt-4.1",
   "FunctionAppBaseUrl": "https://func-contosoretail-<suffix>.azurewebsites.net/api",
-  "BingConnectionId": "/subscriptions/<subscription-id>/resourceGroups/rg-contoso-retail/providers/Microsoft.CognitiveServices/accounts/ais-contosoretail-<suffix>/connections/ais-contosoretail-<suffix>-bingsearchconnection"
+  "BingConnectionName": "ais-contosoretail-<suffix>-bingsearchconnection"
 }
 ```
 
 Todos estos valores los obtienes de la salida del script de despliegue (o del portal → recurso AI Foundry → **Project settings** → **Overview**).
 
-> Para obtener el `BingConnectionId` directamente, ejecuta:
+> Para obtener el `BingConnectionName` directamente, ejecuta:
 > ```bash
 > az cognitiveservices account connection list \
 >     --name ais-contosoretail-<suffix> \
 >     --resource-group rg-contoso-retail \
->     --query "[?contains(name,'bing')].id" -o tsv
+>     --query "[?contains(name,'bing')].name" -o tsv
 > ```
-> Reemplaza `<suffix>` con tu sufijo. El comando retorna el ARM resource ID completo listo para pegar.
+> Reemplaza `<suffix>` con tu sufijo. El comando retorna el nombre de la conexión listo para pegar.
 
 ### Paso 2: Asegurarte de que los permisos de Fabric están configurados
 
