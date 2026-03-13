@@ -1,0 +1,20 @@
+{
+  "name": "Taller Multi-Agéntico",
+  "image": "mcr.microsoft.com/devcontainers/dotnet:8.0",
+  "features": {
+    "ghcr.io/devcontainers/features/azure-cli:1": {},
+    "ghcr.io/devcontainers/features/powershell:1": {}
+  },
+  "postCreateCommand": "dotnet restore labs/foundry/code/taller-multi-agentic.sln",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-dotnettools.csdevkit",
+        "ms-azuretools.vscode-bicep",
+        "ms-vscode.powershell",
+        "humao.rest-client"
+      ]
+    }
+  },
+  "remoteUser": "vscode"
+}

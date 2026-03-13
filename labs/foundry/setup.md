@@ -1,4 +1,6 @@
-# Microsoft Foundry — Intro y Setup de Infraestructura
+# Microsoft Foundry — Setup en Máquina Local
+
+> 💡 **¿Prefieres evitar instalar herramientas?** La opción recomendada para el taller es usar **GitHub Codespaces** — entorno pre-configurado listo en 2 minutos, sin instalar nada. Consulta [codespaces-setup.md](codespaces-setup.md) para la guía paso a paso.
 
 ## Introducción
 
@@ -185,14 +187,16 @@ az role assignment create `
 
 ```
 labs/foundry/
-├── setup.md                               ← Este archivo
+├── setup.md                               ← Este archivo (setup en máquina local)
+├── codespaces-setup.md                    ← Guía de setup con Codespaces (recomendada)
 ├── lab03-anders-executor-agent.md          ← Lab 3: Agente Anders
 ├── lab04-julie-planner-agent.md           ← Lab 4: Agente Julie
 ├── setup/
 │   ├── op-flex/                           ← ⭐ Opción recomendada (Flex Consumption / Linux)
 │   │   ├── main.bicep
 │   │   ├── storage-rbac.bicep
-│   │   └── deploy.ps1
+│   │   ├── deploy.ps1                     ← Script para máquina local
+│   │   └── deployFromAzure.ps1            ← Script para Codespaces / Azure Cloud Shell
 │   └── op-consumption/                    ← Opción clásica (Consumption Y1 / Windows)
 │       ├── main.bicep
 │       ├── storage-rbac.bicep
@@ -223,7 +227,6 @@ labs/foundry/
         │   ├── bruno.json
         │   ├── OrdersReporter.bru
         │   └── environments/
-        │       └── local.bru
         └── http/
             └── FxContosoRetail.http       ← Archivo .http (VS Code REST Client)
 ```
@@ -238,8 +241,6 @@ labs/foundry/
 | Lab 4 | [Julie — Planner Agent](lab04-julie-planner-agent.md)     | Crear el agente orquestador de campañas de marketing usando el patrón workflow con sub-agentes (SqlAgent, MarketingAgent) y herramienta OpenAPI. |
 
 ---
-
-## 
 
 ## Siguiente paso
 
