@@ -364,20 +364,99 @@ Con esto, el código local se limita a orquestar infraestructura de agente; la e
 
 > Nota: el `Program.cs` descarga OpenAPI con reintentos para tolerar fallas DNS intermitentes; esa spec se pasa a `SqlAgent` para habilitar la tool `SqlExecutor` y ejecutar SQL desde el sub-agente.
 
-## Patrón recomendado aplicado en este lab
+---
 
-Para mantener consistencia y mantenibilidad, este laboratorio aplica el siguiente patrón:
+## Pasos del laboratorio
 
-1. **Definiciones tipadas en código**
-	- `SqlAgent` y `MarketingAgent` retornan `PromptAgentDefinition`.
-	- `JulieOrchestrator` retorna `WorkflowAgentDefinition`.
+### Paso 1: Configurar appsettings.json
 
-2. **Creación tipada de versiones**
-	- Se usa `CreateAgentVersionAsync(..., new AgentVersionCreationOptions(agentDefinition))`.
+Abre `labs/foundry/code/agents/JulieAgent/appsettings.json` y reemplaza todos los valores `<suffix>` y `<subscription-id>` con los outputs del despliegue (Paso 8 del setup):
 
-3. **Separación clara de responsabilidades**
-	- `Program.cs` crea/versiona agentes y abre conversación.
-	- Cada clase de agente encapsula sus instrucciones y tools.
+```json
+{
+  "FoundryProjectEndpoint": "https://ais-contosoretail-<suffix>.services.ai.azure.com/api/projects/aip-contosoretail-<suffix>",
+  "ModelDeploymentName": "gpt-4.1",
+  "FunctionAppBaseUrl": "https://func-contosoretail-<suffix>.azurewebsites.net/api",
+  "BingConnectionId": "/subscriptions/<subscription-id>/resourceGroups/rg-contoso-retail/providers/Microsoft.CognitiveServices/accounts/ais-contosoretail-<suffix>/connections/ais-contosoretail-<suffix>-bingsearchconnection"
+}
+```
 
-4. **Contrato de salida estable**
-	- Julie mantiene salida JSON final homogénea para facilitar consumo por otros sistemas o validaciones automáticas.
+Todos estos valores los obtienes de la salida del script de despliegue (o del portal → recurso AI Foundry → **Project settings** → **Overview**).
+
+> El `BingConnectionId` es el ID completo del recurso de conexión (ARM resource ID). Lo puedes obtener también con:
+> ```bash
+> az cognitiveservices account list \
+>     --resource-group rg-contoso-retail \
+>     --query "[0].id" -o tsv
+> ```
+> y luego concatenar `/connections/ais-contosoretail-<suffix>-bingsearchconnection`.
+
+### Paso 2: Asegurarte de que los permisos de Fabric están configurados
+
+Antes de ejecutar, confirma que ya completaste la sección **Configuración manual de permisos en Fabric** de este mismo documento (Partes A y B). Si no lo hiciste, la Function App no podrá ejecutar SQL contra el Warehouse y `SqlAgent` fallará.
+
+### Paso 3: Ejecutar Julie
+
+Desde la terminal, en la raíz del repositorio:
+
+```bash
+cd labs/foundry/code/agents/JulieAgent
+dotnet run
+```
+
+Al arrancar, el programa:
+1. Descarga la spec OpenAPI de la Function App (puede tardar unos segundos).
+2. Crea o actualiza los tres agentes en Foundry: `SqlAgent`, `MarketingAgent` y `Julie`.
+3. Abre un chat interactivo en la terminal.
+
+Verás mensajes como:
+
+```
+Agente SqlAgent creado/actualizado.
+Agente MarketingAgent creado/actualizado.
+Agente Julie creado/actualizado.
+Chat iniciado. Escribe tu solicitud de campaña (o 'exit' para salir):
+>
+```
+
+### Paso 4: Probar el flujo end-to-end
+
+Escribe un prompt describiendo el segmento de clientes para la campaña. Por ejemplo:
+
+```
+Crea una campaña para clientes cuya categoría favorita sea Bikes
+```
+
+```
+Genera una campaña para los 5 clientes más recientes que hayan comprado en la categoría Clothing
+```
+
+Julie invocará a `SqlAgent` (que generará y ejecutará el SQL contra Fabric), luego a `MarketingAgent` (que buscará eventos en Bing y redactará el mensaje personalizado para cada cliente), y finalmente consolidará todo en un JSON de campaña:
+
+```json
+{
+  "campaign": "Campaña Bikes - Primavera 2026",
+  "generatedAt": "2026-03-13T10:30:00",
+  "totalEmails": 3,
+  "emails": [
+    {
+      "to": "cliente@ejemplo.com",
+      "customerName": "Ana García",
+      "favoriteCategory": "Bikes",
+      "subject": "¡Ana, prepárate para la temporada ciclista!",
+      "body": "Hola Ana, ..."
+    }
+  ]
+}
+```
+
+> La primera ejecución puede tardar **30–60 segundos** porque el workflow pasa por SQL execution + Bing search + generación de texto para cada cliente del segmento.
+
+### Validación del laboratorio
+
+El laboratorio se considera completado cuando:
+
+- [ ] Los tres agentes aparecen creados en el portal de Foundry (AI Foundry → tu proyecto → **Agents**).
+- [ ] Un prompt de campaña retorna un JSON con al menos un email generado.
+- [ ] El `body` de cada email incluye una referencia a un evento o tendencia actual buscada en Bing.
+

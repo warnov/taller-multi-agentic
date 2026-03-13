@@ -287,8 +287,6 @@ Espera **1 minuto** para que se propague el permiso antes de ejecutar los agente
 
 > **Nota:** Si obtienes un error `RoleAssignmentExists`, el rol ya fue asignado automáticamente por el script de despliegue. Puedes continuar.
 
-> **¿Por qué `--assignee-object-id` en vez de `--assignee`?** El comando `--assignee` intenta resolver el UPN/email a un Object ID consultando Microsoft Graph. Las cuentas Microsoft personales (`@hotmail.com`, `@outlook.com`, `@live.com`) no tienen permisos para hacer esa consulta en el Graph API del tenant, lo que genera el error `Insufficient privileges`. Usando `--assignee-object-id` se omite esa consulta y la asignación funciona directamente.
-
 ---
 
 ### Paso 11: Verificar el despliegue
@@ -308,6 +306,7 @@ El resultado debe incluir estos recursos:
 | Function App        | `func-contosoretail-{suffix}`   | API de Contoso Retail (.NET 8, dotnet-isolated) |
 | AI Foundry Resource | `ais-contosoretail-{suffix}`    | AI Services + proyectos Foundry con GPT-4.1 |
 | AI Foundry Project  | `aip-contosoretail-{suffix}`    | Proyecto de trabajo en Foundry |
+| Bing Search         | `bing-contosoretail-{suffix}`   | Conexión de búsqueda web para el agente Julie |
 
 > **Nota:** El `{suffix}` es un identificador único de 5 caracteres generado automáticamente a partir del número de tenant que suministraste. Esto garantiza que los nombres de recursos no colisionen entre participantes.
 

@@ -49,71 +49,6 @@ Para que Anders pueda interactuar con la API de Contoso Retail, definiremos una 
 | **3.2** | Verificar la especificación OpenAPI |
 | **3.3** | Entender, configurar, ejecutar y probar el agente Anders |
 
-### Prerrequisitos
-
-#### Herramientas en tu máquina
-
-| Herramienta | Descripción | Descarga |
-|-------------|-------------|----------|
-| **.NET 8 SDK** | Compilar y ejecutar el agente Anders | [Descargar](https://dotnet.microsoft.com/download/dotnet/8.0) |
-| **Azure CLI** | Autenticarse en Azure, desplegar recursos y asignar roles RBAC | [Instalar](https://learn.microsoft.com/cli/azure/install-azure-cli) |
-| **PowerShell 7+** | Ejecutar scripts de despliegue. **Requerido en todos los OS** (incluido Windows). No usar PowerShell 5.1. | [Instalar](https://learn.microsoft.com/powershell/scripting/install/installing-powershell) · Windows: `winget install Microsoft.PowerShell` |
-| **Git** | Clonar el repositorio del taller | [Descargar](https://git-scm.com/downloads) |
-
-> [!IMPORTANT]
-> **Windows:** Después de instalar PowerShell 7, configura la ExecutionPolicy ejecutando **una vez** en `pwsh`:
-> ```powershell
-> Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-> ```
-
-> [!TIP]
-> En **macOS**, puedes instalar las herramientas con Homebrew:
-> ```bash
-> brew install dotnet-sdk azure-cli azure-functions-core-tools@4 powershell git
-> ```
-
-> [!TIP]
-> En **Linux** (Ubuntu/Debian), puedes instalar PowerShell 7 con:
-> ```bash
-> sudo apt-get update && sudo apt-get install -y wget apt-transport-https software-properties-common
-> wget -q "https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb"
-> sudo dpkg -i packages-microsoft-prod.deb && rm packages-microsoft-prod.deb
-> sudo apt-get update && sudo apt-get install -y powershell
-> ```
-> Ver: [Instalar PowerShell en Linux](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-linux)
-
-#### Infraestructura Azure
-
-- Haber completado el **setup de infraestructura** descrito en el [Setup de Foundry](README.md)
-- Tener anotados **todos los valores generados en el despliegue** de la infraestructura (nombres de recursos, URLs, sufijo, endpoint de AI Foundry, etc.)
-- Tener identificados estos 2 valores del Warehouse de Fabric (se usan en el setup actualizado):
-    - `FabricWarehouseSqlEndpoint`
-    - `FabricWarehouseDatabase`
-
-#### Permisos RBAC
-
-Tu usuario necesita el rol **Cognitive Services User** sobre el recurso de AI Services para poder crear y ejecutar agentes. Como tu usuario es **Owner del tenant**, puedes asignarte el rol tú mismo.
-
-Ejecuta los siguientes comandos (reemplaza `{suffix}` con tu sufijo de 5 caracteres):
-
-```powershell
-# 1. Obtener tu nombre de usuario (UPN)
-$upn = az account show --query "user.name" -o tsv
-
-# 2. Obtener el nombre del recurso de AI Services (si no lo recuerdas)
-az cognitiveservices account list --resource-group rg-contoso-retail --query "[].name" -o tsv
-
-# 3. Asignar el rol Cognitive Services User
-az role assignment create `
-    --assignee $upn `
-    --role "Cognitive Services User" `
-    --scope "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/rg-contoso-retail/providers/Microsoft.CognitiveServices/accounts/ais-contosoretail-{suffix}"
-```
-
-> **Nota:** La propagación de RBAC puede tardar hasta 1 minuto. Espera antes de continuar con el lab.
-
----
-
 ## 3.1 — Verificar soporte OpenAPI (ya viene preconfigurado)
 
 En la versión actual del taller, la Function App `FxContosoRetail` **ya incluye** OpenAPI y endpoints decorados en el código base. En este paso no vas a implementar OpenAPI desde cero: solo validar que todo está correcto antes del despliegue.
@@ -220,7 +155,7 @@ Las diferencias clave entre ambos enfoques son:
 
 **Se recomienda la versión `ms-foundry/`** para desarrollo nuevo. Está alineada con la dirección de la plataforma Microsoft Foundry y ofrece un modelo de programación más simple — particularmente la eliminación del loop de polling en favor de una sola llamada síncrona de respuesta.
 
-La versión `ai-foundry/` se conserva en este taller por **retrocompatibilidad**: los asistentes cuyos recursos de Azure AI Services fueron aprovisionados antes de que la nueva experiencia estuviera disponible pueden completar el lab usando la API de Persistent Agents.
+La versión `ai-foundry/` se conserva en este taller por **retrocompatibilidad**.
 
 > [!IMPORTANT]
 > A febrero de 2026, el paquete `Azure.AI.Projects.OpenAI` y la Responses API están en **preview pública**. Las formas de la API, schemas de payload y tipos del SDK pueden cambiar antes de alcanzar disponibilidad general (GA). Si encuentras problemas como propiedades faltantes o renombradas (por ejemplo, el campo `kind` requerido en el payload de definición del agente), consulta las últimas [notas de versión de Azure.AI.Projects.OpenAI](https://www.nuget.org/packages/Azure.AI.Projects.OpenAI) para conocer los cambios que rompen compatibilidad.
