@@ -101,6 +101,22 @@ AIProjectClient projectClient = new(
     endpoint: new Uri(foundryEndpoint),
     tokenProvider: new DefaultAzureCredential());
 
+// --- Resolver el ID completo de la conexión Bing ---
+Console.WriteLine($"[Config] Resolviendo conexión Bing '{bingConnectionName}'...");
+string bingConnectionId;
+try
+{
+    var bingConnection = await projectClient.Connections.GetConnectionAsync(bingConnectionName);
+    bingConnectionId = bingConnection.Value.Id;
+    Console.WriteLine($"[Config] Conexión Bing resuelta: {bingConnectionId}");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"[Config] No se pudo resolver la conexión Bing: {ex.Message}");
+    Console.WriteLine($"[Config] Se usará el nombre tal cual: {bingConnectionName}");
+    bingConnectionId = bingConnectionName;
+}
+
 // =====================================================================
 //  FASE 1: Crear/verificar los 3 agentes en Microsoft Foundry
 // =====================================================================
@@ -182,7 +198,7 @@ async Task EnsureAgent(string agentName, AgentDefinition agentDefinition)
 
 // Crear los 3 agentes
 await EnsureAgent(SqlAgent.Name, SqlAgent.GetAgentDefinition(modelDeployment, dbStructure, openApiSpecJson));
-await EnsureAgent(MarketingAgent.Name, MarketingAgent.GetAgentDefinition(modelDeployment, bingConnectionName));
+await EnsureAgent(MarketingAgent.Name, MarketingAgent.GetAgentDefinition(modelDeployment, bingConnectionId));
 await EnsureAgent(JulieOrchestrator.Name, JulieOrchestrator.GetAgentDefinition(modelDeployment, openApiSpecJson));
 
 Console.WriteLine();
