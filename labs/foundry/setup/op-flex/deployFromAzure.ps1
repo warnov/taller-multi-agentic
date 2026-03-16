@@ -11,14 +11,15 @@
 #        pwsh ./deployFromAzure.ps1 -TenantName "mi-tenant"
 #
 # Uso:
-#   ./deployFromAzure.ps1 -TenantName "mi-tenant"
-#   ./deployFromAzure.ps1 -TenantName "mi-tenant" -FabricWarehouseSqlEndpoint "<endpoint>" -FabricWarehouseDatabase "<db>"
-#   ./deployFromAzure.ps1 -TenantName "mi-tenant" -Location "eastus" -FabricWarehouseSqlEndpoint "<endpoint>" -FabricWarehouseDatabase "<db>"
+#   ./deployFromAzure.ps1
+#   ./deployFromAzure.ps1 -FabricWarehouseSqlEndpoint "<endpoint>" -FabricWarehouseDatabase "<db>"
+#   ./deployFromAzure.ps1 -Location "eastus" -FabricWarehouseSqlEndpoint "<endpoint>" -FabricWarehouseDatabase "<db>"
+# TenantName es opcional: solo se muestra en pantalla, no afecta a los recursos creados.
 # ============================================================================
 
 param(
-    [Parameter(Mandatory = $true, HelpMessage = "Nombre del tenant temporal asignado al attendee.")]
-    [string]$TenantName,
+    [Parameter(Mandatory = $false, HelpMessage = "Etiqueta descriptiva opcional (ej: número de tenant del attendee). Solo se muestra en pantalla.")]
+    [string]$TenantName = "",
 
     [Parameter(Mandatory = $false, HelpMessage = "Región de Azure (default: eastus).")]
     [string]$Location = "eastus",
@@ -115,29 +116,8 @@ Write-Host "[2/5] Creando Resource Group '$ResourceGroupName'..." -ForegroundCol
 az group create --name $ResourceGroupName --location $Location --output none
 Write-Host "  Resource Group listo." -ForegroundColor Gray
 
-# Intentar preservar configuración existente
-$suffixForNames = $null
-if (-not [string]::IsNullOrWhiteSpace($TenantName)) {
-    $suffixTemplateForPreserve = @'
-{
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "contentVersion": "1.0.0.0",
-  "parameters": { "t": { "type": "string" } },
-  "resources": [],
-  "outputs": { "s": { "type": "string", "value": "[substring(uniqueString(parameters('t')),0,5)]" } }
-}
-'@
-    $suffixTempFileForPreserve = Join-Path "/tmp" "suffix-calc-preserve.json"
-    Set-Content -Path $suffixTempFileForPreserve -Value $suffixTemplateForPreserve -Encoding utf8
-    $suffixForNames = az deployment group create `
-        --resource-group $ResourceGroupName `
-        --template-file $suffixTempFileForPreserve `
-        --parameters t=$TenantName `
-        --name "suffix-calc-preserve" `
-        --query 'properties.outputs.s.value' `
-        --output tsv 2>$null
-    Remove-Item $suffixTempFileForPreserve -Force -ErrorAction SilentlyContinue
-}
+# Sufijo único derivado del ID de suscripción (coincide con lo que calcula main.bicep)
+$suffixForNames = $account.id.Replace('-', '').Substring(0, 5).ToLower()
 
 if (-not $hasCompleteFabricConfig -and -not [string]::IsNullOrWhiteSpace($suffixForNames)) {
     $existingFunctionAppName = "func-contosoretail-$suffixForNames"
@@ -156,26 +136,8 @@ if (-not $hasCompleteFabricConfig -and -not [string]::IsNullOrWhiteSpace($suffix
 # --- 3. Desplegar Bicep ---
 Write-Host "[3/5] Desplegando infraestructura..." -ForegroundColor Green
 
-# Calcular y mostrar el sufijo antes de desplegar
-$suffixTemplate = @'
-{
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "contentVersion": "1.0.0.0",
-  "parameters": { "t": { "type": "string" } },
-  "resources": [],
-  "outputs": { "s": { "type": "string", "value": "[substring(uniqueString(parameters('t')),0,5)]" } }
-}
-'@
-$suffixTempFile = Join-Path "/tmp" "suffix-calc.json"
-Set-Content -Path $suffixTempFile -Value $suffixTemplate -Encoding utf8
-$suffixResult = az deployment group create `
-    --resource-group $ResourceGroupName `
-    --template-file $suffixTempFile `
-    --parameters t=$TenantName `
-    --name "suffix-calc" `
-    --query 'properties.outputs.s.value' `
-    --output tsv 2>$null
-Remove-Item $suffixTempFile -Force -ErrorAction SilentlyContinue
+# El sufijo se calcula igual que en main.bicep: 5 primeros hex chars del subscription ID (sin guiones)
+$suffixResult = $account.id.Replace('-', '').Substring(0, 5).ToLower()
 Write-Host "  Sufijo:         $suffixResult" -ForegroundColor Yellow
 
 Write-Host "" -ForegroundColor Gray
@@ -195,7 +157,7 @@ if (-not (Test-Path $templateFile)) {
 az deployment group create `
     --resource-group $ResourceGroupName `
     --template-file $templateFile `
-    --parameters tenantName=$TenantName location=$Location fabricWarehouseSqlEndpoint=$FabricWarehouseSqlEndpoint fabricWarehouseDatabase=$FabricWarehouseDatabase fabricWarehouseConnectionString="$FabricWarehouseConnectionString" `
+    --parameters location=$Location fabricWarehouseSqlEndpoint=$FabricWarehouseSqlEndpoint fabricWarehouseDatabase=$FabricWarehouseDatabase fabricWarehouseConnectionString="$FabricWarehouseConnectionString" `
     --name $deploymentName `
     --no-wait `
     --output none

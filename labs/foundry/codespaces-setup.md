@@ -64,7 +64,9 @@ GitHub Codespaces proporciona un entorno de desarrollo completo en la nube, pre-
 
 4. Espera entre **2 y 4 minutos** mientras GitHub construye el entorno. Verás una pantalla de carga con logs de construcción. **Esto solo ocurre la primera vez** — las sesiones posteriores inician en segundos porque el entorno queda guardado.
 
-5. Cuando el entorno esté listo, se abrirá **VS Code en el navegador** con todos los archivos del repositorio ya disponibles en el panel izquierdo y las dependencias de .NET ya restauradas.
+5. Cuando el entorno esté listo, se abrirá **VS Code en el navegador** con todos los archivos del repositorio ya disponibles en el panel izquierdo y las dependencias de .NET ya restauradas. Si la conexión a través del navegador se complica, se recomienda lanzar el codespace en Visual Studio local, indicando esto desde la sección de Code del repo en Github:  
+   ![Instrucciones para abrir Codespace en VS Code local](../../assets/codespaces-instructions.png)
+
 
 > 💡 **¿Prefieres VS Code de escritorio?** Si tienes VS Code instalado en tu máquina con la extensión **GitHub Codespaces**, puedes hacer clic en el ícono `><` (esquina inferior izquierda) → *Connect to Codespace* para conectarte desde VS Code local sin perder el entorno de nube.
 
@@ -93,17 +95,11 @@ Si los tres responden correctamente, el entorno está listo para los siguientes 
 
 ---
 
-### Paso 4: Identificar tu número de tenant
+### Paso 4: Autenticarse en Azure
 
-Antes de ejecutar el script, identifica el **número de tenant** asignado para el taller. Este número está incluido en el nombre del usuario que el instructor te asignó.
-
-**Ejemplo:** si tu usuario es `usuario@azurehol3387.com`, tu número de tenant es **`3387`**.
-
-El script te lo pedirá de forma interactiva — solo necesitas tenerlo a mano.
+> ℹ️ **El sufijo único de tus recursos se genera automáticamente** a partir del ID de tu suscripción de Azure (un UUID globalmente único). No necesitas ingresar ningún número de tenant ni identificador manual.
 
 ---
-
-### Paso 5: Autenticarse en Azure
 
 En la terminal del Codespace, ejecuta:
 
@@ -111,7 +107,7 @@ En la terminal del Codespace, ejecuta:
 az login --use-device-code
 ```
 
-> ⚠️ Es importante usar `--use-device-code` en Codespaces. El flujo normal (`az login`) intenta abrir un browser local desde el servidor remoto, lo que no funciona correctamente en este entorno.
+> ⚠️ Es importante usar `--use-device-code` en Codespaces. El flujo normal (`az login`) intenta abrir un browser local desde el servidor remoto, lo que no funciona correctamente en este entorno. Recuerda que debes abrir la URL de autenticación en tu navegador local, en donde estás logeado con tu cuenta de laboratorio que fue creada para el taller (la que termina en `@azurehol<número>.com`).
 
 Verás una salida similar a esta:
 
@@ -146,7 +142,7 @@ az account set --subscription "nombre-o-id-de-la-suscripcion"
 Para el Lab 4 (Julie/SqlAgent), necesitarás dos valores del Warehouse de Fabric:
 
 - **FabricWarehouseSqlEndpoint**: endpoint SQL del Warehouse, sin `tcp://` ni puerto. Ejemplo: `xyz.datawarehouse.fabric.microsoft.com`
-- **FabricWarehouseDatabase**: nombre exacto de la base de datos del Warehouse.
+- **FabricWarehouseDatabase**: nombre exacto y completo de la base de datos.
 
 Para obtenerlos desde el portal de Fabric, sigue la guía [sql-parameters.md](./setup/sql-parameters.md).
 
@@ -168,12 +164,9 @@ Ejecuta el script de despliegue (usando `pwsh` para iniciar PowerShell 7):
 pwsh ./deployFromAzure.ps1
 ```
 
-El script te pedirá todos los parámetros de forma interactiva. Ingresa tu número de tenant cuando se solicite y presiona <kbd>Enter</kbd> para aceptar los valores por defecto de `Location` y `ResourceGroupName`:
+El script solo te pedirá los parámetros opcionales. Presiona <kbd>Enter</kbd> para aceptar los valores por defecto de `Location` y `ResourceGroupName`:
 
 ```
-Cmdlet deployFromAzure.ps1 at command pipeline position 1
-Supply values for the following parameters:
-TenantName: 3387
 Presiona Enter para default.
 Location [eastus]:
 ResourceGroupName [rg-contoso-retail]:
@@ -191,7 +184,8 @@ Verás la confirmación del plan antes de que comience la ejecución:
  Modo: Azure Cloud Shell
 ========================================
 
-  Tenant:         3387
+  Suscripción:    Mi Suscripción Azure (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+  Sufijo:         ab3f2
   Location:       eastus
   Resource Group: rg-contoso-retail
   Fabric SQL:     kqbvkknqlijebcyrtw2rgtsx2e-...
