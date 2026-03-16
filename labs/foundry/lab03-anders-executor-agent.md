@@ -31,6 +31,9 @@
     - [Paso 4: Probar el agente](#paso-4-probar-el-agente)
   - [Solución de problemas](#solución-de-problemas)
     - [Storage Account bloqueado por política (error 503)](#storage-account-bloqueado-por-política-error-503)
+  - [Challenge: Respuestas en streaming](#challenge-respuestas-en-streaming)
+    - [Pista](#pista)
+    - [Criterio de éxito](#criterio-de-éxito)
   - [Siguiente paso](#siguiente-paso)
 
 ---
@@ -403,16 +406,16 @@ Actualmente el chat de Anders espera a que el agente complete toda su respuesta 
 
 ### Pista
 
-El SDK expone `CreateResponseStreaming()` como alternativa a `CreateResponse()`. Devuelve un `IAsyncEnumerable` de eventos que puedes iterar para imprimir cada fragmento de texto conforme llega:
+El SDK expone `CreateResponseStreamingAsync()` como alternativa a `CreateResponse()`. Devuelve un `IAsyncEnumerable` de eventos que puedes iterar para imprimir cada fragmento de texto conforme llega:
 
 ```csharp
 await foreach (var update in responseClient.CreateResponseStreamingAsync(input))
 {
-    // Inspecciona el tipo de update e imprime los deltas de texto
+    // Filtra los eventos de tipo delta de texto e imprime el fragmento
 }
 ```
 
-Los eventos de tipo `ResponseContentPartDeltaUpdate` contienen la propiedad `Text` con el fragmento de texto del token actual.
+Los eventos que contienen texto son de tipo `StreamingResponseOutputTextDeltaUpdate` (namespace `OpenAI.Responses`, ya importado), y su propiedad con el fragmento se llama `Delta`.
 
 ### Criterio de éxito
 
