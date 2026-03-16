@@ -3,14 +3,15 @@
 # Taller Multi-Agéntico
 # ============================================================================
 # Uso:
-#   .\deployLanguageModeFixed.ps1 -TenantName "mi-tenant-temporal"
-#   .\deployLanguageModeFixed.ps1 -TenantName "mi-tenant-temporal" -FabricWarehouseSqlEndpoint "<endpoint-sql-fabric>" -FabricWarehouseDatabase "<database>"
-#   .\deployLanguageModeFixed.ps1 -TenantName "mi-tenant-temporal" -Location "eastus" -FabricWarehouseSqlEndpoint "<endpoint-sql-fabric>" -FabricWarehouseDatabase "<database>"
+#   .\deployLanguageModeFixed.ps1
+#   .\deployLanguageModeFixed.ps1 -FabricWarehouseSqlEndpoint "<endpoint-sql-fabric>" -FabricWarehouseDatabase "<database>"
+#   .\deployLanguageModeFixed.ps1 -Location "eastus" -FabricWarehouseSqlEndpoint "<endpoint-sql-fabric>" -FabricWarehouseDatabase "<database>"
+# TenantName es opcional: solo se muestra en pantalla, no afecta a los recursos creados.
 # ============================================================================
 
 param(
-    [Parameter(Mandatory = $true, HelpMessage = "Nombre del tenant temporal asignado al attendee.")]
-    [string]$TenantName,
+    [Parameter(Mandatory = $false, HelpMessage = "Etiqueta descriptiva opcional (ej: número de tenant del attendee). Solo se muestra en pantalla.")]
+    [string]$TenantName = "",
 
     [Parameter(Mandatory = $false, HelpMessage = "Región de Azure (default: eastus).")]
     [string]$Location = "eastus",
@@ -156,31 +157,8 @@ Write-Host "[3/5] Creando Resource Group '$ResourceGroupName'..." -ForegroundCol
 az group create --name $ResourceGroupName --location $Location --output none
 Write-Host "  Resource Group listo." -ForegroundColor Gray
 
-# Intentar preservar configuración existente (requiere que el RG ya exista)
-$suffixForNames = $null
-if (-not [string]::IsNullOrWhiteSpace($TenantName)) {
-    $suffixTemplateForPreserve = @'
-{
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "contentVersion": "1.0.0.0",
-  "parameters": { "t": { "type": "string" } },
-  "resources": [],
-  "outputs": { "s": { "type": "string", "value": "[substring(uniqueString(parameters('t')),0,5)]" } }
-}
-'@
-    $suffixTempFileForPreserve = Join-Path $env:TEMP "suffix-calc-preserve.json"
-    # FIX (Constrained Language Mode): [System.IO.File]::WriteAllText con [System.Text.UTF8Encoding]::new()
-    # no está permitido en CLM. Se reemplaza por Set-Content con -Encoding utf8NoBOM (PS 6+).
-    Set-Content -Path $suffixTempFileForPreserve -Value $suffixTemplateForPreserve -Encoding utf8NoBOM
-    $suffixForNames = az deployment group create `
-        --resource-group $ResourceGroupName `
-        --template-file $suffixTempFileForPreserve `
-        --parameters t=$TenantName `
-        --name "suffix-calc-preserve" `
-        --query 'properties.outputs.s.value' `
-        --output tsv 2>$null
-    Remove-Item $suffixTempFileForPreserve -Force -ErrorAction SilentlyContinue
-}
+# Sufijo único derivado del ID de suscripción (coincide con lo que calcula main.bicep)
+$suffixForNames = $account.id.Replace('-', '').Substring(0, 5).ToLower()
 
 if (-not $hasCompleteFabricConfig -and -not [string]::IsNullOrWhiteSpace($suffixForNames)) {
     $existingFunctionAppName = "func-contosoretail-$suffixForNames"
@@ -199,27 +177,8 @@ if (-not $hasCompleteFabricConfig -and -not [string]::IsNullOrWhiteSpace($suffix
 # --- 4. Desplegar Bicep ---
 Write-Host "[4/5] Desplegando infraestructura..." -ForegroundColor Green
 
-# Calcular y mostrar el sufijo antes de desplegar
-$suffixTemplate = @'
-{
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "contentVersion": "1.0.0.0",
-  "parameters": { "t": { "type": "string" } },
-  "resources": [],
-  "outputs": { "s": { "type": "string", "value": "[substring(uniqueString(parameters('t')),0,5)]" } }
-}
-'@
-$suffixTempFile = Join-Path $env:TEMP "suffix-calc.json"
-# FIX (Constrained Language Mode): igual que arriba, se usa Set-Content en lugar de [System.IO.File]::WriteAllText.
-Set-Content -Path $suffixTempFile -Value $suffixTemplate -Encoding utf8NoBOM
-$suffixResult = az deployment group create `
-    --resource-group $ResourceGroupName `
-    --template-file $suffixTempFile `
-    --parameters t=$TenantName `
-    --name "suffix-calc" `
-    --query 'properties.outputs.s.value' `
-    --output tsv 2>$null
-Remove-Item $suffixTempFile -Force -ErrorAction SilentlyContinue
+# El sufijo se calcula igual que en main.bicep: 5 primeros hex chars del subscription ID (sin guiones)
+$suffixResult = $account.id.Replace('-', '').Substring(0, 5).ToLower()
 Write-Host "  Sufijo:         $suffixResult" -ForegroundColor Yellow
 
 Write-Host "" -ForegroundColor Gray
@@ -233,7 +192,7 @@ $deploymentName = "main"
 az deployment group create `
     --resource-group $ResourceGroupName `
     --template-file $templateFile `
-    --parameters tenantName=$TenantName location=$Location fabricWarehouseSqlEndpoint=$FabricWarehouseSqlEndpoint fabricWarehouseDatabase=$FabricWarehouseDatabase fabricWarehouseConnectionString="$FabricWarehouseConnectionString" `
+    --parameters location=$Location fabricWarehouseSqlEndpoint=$FabricWarehouseSqlEndpoint fabricWarehouseDatabase=$FabricWarehouseDatabase fabricWarehouseConnectionString="$FabricWarehouseConnectionString" `
     --name $deploymentName `
     --no-wait `
     --output none
@@ -429,7 +388,7 @@ Write-Host "  API OrdersReporter:          $apiUrl" -ForegroundColor White
 Write-Host "  Foundry Project Endpoint:    $($outputs.foundryProjectEndpoint.value)" -ForegroundColor White
 Write-Host "  Bing Grounding Resource:     $($outputs.bingGroundingName.value)" -ForegroundColor White
 Write-Host "  Bing Connection Name:        $($outputs.bingConnectionName.value)" -ForegroundColor White
-Write-Host "  Bing Connection ID (Julie):  $($outputs.bingConnectionId.value)" -ForegroundColor White
+Write-Host "  Bing Connection Name (Julie): $($outputs.bingConnectionName.value)" -ForegroundColor White
 if ($hasCompleteFabricConfig) {
     Write-Host "  Fabric SQL Connection:       actualizada desde parámetros" -ForegroundColor White
 }

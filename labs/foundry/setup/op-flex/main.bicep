@@ -3,7 +3,7 @@
 // Taller Multi-Agéntico
 // ============================================================================
 // Cada attendee despliega en su propia suscripción.
-// El sufijo único (5 chars) se genera a partir del nombre del tenant temporal.
+// El sufijo único (5 chars) se genera a partir del ID de suscripción de Azure (UUID, globalmente único).
 //
 // Plan: Flex Consumption (FC1 / Linux)
 // - Identity-based storage completo (sin connection strings para runtime)
@@ -18,8 +18,8 @@ targetScope = 'resourceGroup'
 // Parámetros
 // ============================================================================
 
-@description('Nombre del tenant temporal asignado al attendee (ej: "contoso-abc123tenant").')
-param tenantName string
+@description('Etiqueta descriptiva opcional (ej: número de tenant del attendee). No se usa para generar el sufijo.')
+param tenantName string = ''
 
 @description('Ubicación de los recursos. Por defecto: eastus.')
 param location string = 'eastus'
@@ -46,7 +46,7 @@ param fabricWarehouseConnectionString string = ''
 // Variables - Sufijo y nombres
 // ============================================================================
 
-var suffix = substring(uniqueString(tenantName), 0, 5)
+var suffix = substring(replace(subscription().subscriptionId, '-', ''), 0, 5)
 
 var storageAccountName = 'stcontosoretail${suffix}'
 var appServicePlanName = 'asp-contosoretail-${suffix}'

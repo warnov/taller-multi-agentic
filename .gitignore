@@ -3,6 +3,10 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
+# Azurite (Azure Storage Emulator) local state files
+__azurite_db_*.json
+__blobstorage__/
+
 # User-specific files
 *.rsuser
 *.suo

@@ -1,0 +1,7 @@
+Purgar Ai Foundry eliminados:
+
+1. Detectar Foundry en soft delete:
+az cognitiveservices account list-deleted --query "[].{name:name, rg:resourceGroup, location:location, kind:kind}" -o table
+
+2. Purgar Foundry:
+az cognitiveservices account purge --name ais-contosoretail-re4w5 --resource-group rg-contoso-retail --location eastus
