@@ -395,6 +395,33 @@ Este script habilita el acceso público de red en el Storage Account y reinicia 
 
 ---
 
+## Challenge: Respuestas en streaming
+
+Actualmente el chat de Anders espera a que el agente complete toda su respuesta antes de mostrarla. Esto puede generar una pausa perceptible cuando el modelo razona y ejecuta la herramienta OpenAPI.
+
+**Tu reto:** modifica el loop de chat en `ms-foundry/Program.cs` para que la respuesta de Anders se imprima token a token a medida que llega, usando la API de streaming.
+
+### Pista
+
+El SDK expone `CreateResponseStreaming()` como alternativa a `CreateResponse()`. Devuelve un `IAsyncEnumerable` de eventos que puedes iterar para imprimir cada fragmento de texto conforme llega:
+
+```csharp
+await foreach (var update in responseClient.CreateResponseStreamingAsync(input))
+{
+    // Inspecciona el tipo de update e imprime los deltas de texto
+}
+```
+
+Los eventos de tipo `ResponseContentPartDeltaUpdate` contienen la propiedad `Text` con el fragmento de texto del token actual.
+
+### Criterio de éxito
+
+- La respuesta de Anders aparece progresivamente en la consola, letra a letra (o fragmento a fragmento), sin esperar a que complete toda la respuesta.
+- El prompt `Tú:` solo aparece una vez que Anders termina de responder.
+- El comportamiento de `salir` y el manejo de errores se mantienen igual que antes.
+
+---
+
 ## Siguiente paso
 
 Continúa con el [Lab 4 — Julie (Planner Agent)](lab04-julie-planner-agent.md).
