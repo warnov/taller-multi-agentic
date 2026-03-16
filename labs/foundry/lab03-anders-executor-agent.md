@@ -300,14 +300,14 @@ Abre el archivo `labs/foundry/code/agents/AndersAgent/ms-foundry/appsettings.jso
 
 ### Paso 2: Compilar y ejecutar
 
-```powershell
-cd labs\foundry\code\agents\AndersAgent\ms-foundry
+```bash
+cd labs/foundry/code/agents/AndersAgent/ms-foundry
 dotnet build
 ```
 
 Asegúrate de que no haya errores de compilación. Luego ejecuta:
 
-```powershell
+```bash
 dotnet run
 ```
 
@@ -374,7 +374,7 @@ En suscripciones con políticas estrictas de Azure, el Storage Account que respa
 - Cada solicitud HTTP a cualquier endpoint retorna 503 después de un timeout de ~60 segundos
 
 **Diagnóstico:**
-```powershell
+```bash
 az storage account show --name stcontosoretail<suffix> --resource-group rg-contoso-retail --query "publicNetworkAccess" -o tsv
 ```
 
@@ -384,9 +384,9 @@ Si retorna `Disabled`, esa es la causa raíz.
 
 Se incluye un script de conveniencia en el repositorio:
 
-```powershell
+```bash
 cd labs/foundry/setup
-.\unlock-storage.ps1
+pwsh ./unlock-storage.ps1
 ```
 
 El script detecta automáticamente el sufijo desde la Function App. Si necesitas forzarlo, también acepta `-Suffix` o `-FunctionAppName`.

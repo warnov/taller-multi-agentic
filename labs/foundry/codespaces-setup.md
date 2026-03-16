@@ -35,6 +35,10 @@ Los agentes Anders y Julie utilizan modelos GPT-4.1 desplegados en Azure AI Serv
 
 GitHub Codespaces proporciona un entorno de desarrollo completo en la nube, pre-configurado con todas las herramientas necesarias. No necesitas instalar nada en tu máquina — solo necesitas un navegador y acceso al repositorio de GitHub.
 
+> [!IMPORTANT]
+> **Requisito: cuenta de GitHub**
+> Para usar GitHub Codespaces necesitas una cuenta de GitHub. Si aún no tienes una, puedes crear una cuenta gratuita siguiendo las instrucciones en [https://docs.github.com/en/get-started/start-your-journey/creating-an-account-on-github](https://docs.github.com/en/get-started/start-your-journey/creating-an-account-on-github).
+
 ### ¿Qué incluye el entorno?
 
 | Herramienta | Viene preinstalada |
