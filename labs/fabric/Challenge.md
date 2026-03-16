@@ -11,10 +11,12 @@
    
    a. ¿Me puedes dar la información de los pagos de la orden `b71b11f7-e976-4bb6-ab5d-4d9c177258e8`?  
    Iniciar una nueva sesión de chat:
+
    ![nueva Sesión](img/challenge1.png)
 
-   
+
    Confirmar nueva sesión:
+   
    ![nueva Sesión](img/challenge2.png)
 
    b. ¿Cuál es el estado de la orden `b71b11f7-e976-4bb6-ab5d-4d9c177258e8`?  
